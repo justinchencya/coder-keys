@@ -12,8 +12,8 @@ class KeyboardView: UIView {
     weak var delegate: KeyboardViewDelegate?
     private weak var keyboardViewController: KeyboardViewController?
     
-    // Color scheme for programmer keyboard
-    private let colors = KeyColors()
+    // Color scheme for programmer keyboard - dynamically updated
+    private var colors = KeyColors()
     
     // MARK: - Separated Architecture Components
     
@@ -29,6 +29,7 @@ class KeyboardView: UIView {
     private var alphabetButtons: [[UIButton]] = []
     private var shiftButton: UIButton?
     private var backspaceButton: UIButton?
+    private var isShiftActive: Bool = false
     
     // Bottom Action Section (Space/Return)
     private var bottomActionSection: UIStackView!
@@ -92,6 +93,11 @@ class KeyboardView: UIView {
         // Initially disable all buttons until keyboard is ready
         updateButtonStates(enabled: false)
         
+        // Register for modern trait change notifications on iOS 17+
+        if #available(iOS 17.0, *) {
+            registerForTraitChanges()
+        }
+        
         debugLog("✅ Keyboard setup complete - all sections created independently")
     }
     
@@ -144,7 +150,7 @@ class KeyboardView: UIView {
             if rowIndex == 1 { // Second row (a-l)
                 rowStack.addArrangedSubview(createSpacer(width: 20))
             } else if rowIndex == 2 { // Third row (z-m)
-                shiftButton = createStandardButton(text: "⇧", color: colors.special, action: #selector(shiftPressedDisabled))
+                shiftButton = createStandardButton(text: "⇧", color: getCurrentColors().special, action: #selector(shiftPressed))
                 shiftButton?.titleLabel?.font = UIFont.systemFont(ofSize: 20)
                 shiftButton?.widthAnchor.constraint(greaterThanOrEqualToConstant: 60).isActive = true
                 rowStack.addArrangedSubview(shiftButton!)
@@ -152,14 +158,14 @@ class KeyboardView: UIView {
             
             // Add alphabet keys for the row
             for key in row {
-                let button = createStandardButton(text: key, color: colors.alphabet, action: #selector(alphabetKeyPressed(_:)))
+                let button = createStandardButton(text: key, color: getCurrentColors().alphabet, action: #selector(alphabetKeyPressed(_:)))
                 buttonRow.append(button)
                 rowStack.addArrangedSubview(button)
             }
             
             // Add backspace to the third alphabet row
             if rowIndex == 2 {
-                backspaceButton = createStandardButton(text: "⌫", color: colors.special, action: #selector(backspacePressed))
+                backspaceButton = createStandardButton(text: "⌫", color: getCurrentColors().special, action: #selector(backspacePressed))
                 backspaceButton?.titleLabel?.font = UIFont.systemFont(ofSize: 22)
                 backspaceButton?.widthAnchor.constraint(greaterThanOrEqualToConstant: 60).isActive = true
                 rowStack.addArrangedSubview(backspaceButton!)
@@ -183,12 +189,12 @@ class KeyboardView: UIView {
         bottomActionSection.spacing = 6
         
         // Create space button - NEVER recreated
-        spaceButton = createStandardButton(text: "space", color: colors.special, action: #selector(spacePressed))
+        spaceButton = createStandardButton(text: "space", color: getCurrentColors().special, action: #selector(spacePressed))
         spaceButton?.titleLabel?.font = UIFont.systemFont(ofSize: 16)
         bottomActionSection.addArrangedSubview(spaceButton!)
         
         // Create return button - NEVER recreated
-        returnButton = createStandardButton(text: "return", color: colors.special, action: #selector(returnPressed))
+        returnButton = createStandardButton(text: "return", color: getCurrentColors().special, action: #selector(returnPressed))
         returnButton?.titleLabel?.font = UIFont.systemFont(ofSize: 16)
         bottomActionSection.addArrangedSubview(returnButton!)
         
@@ -200,6 +206,7 @@ class KeyboardView: UIView {
     }
     
     private func getColorForNumberSymbolKey(_ key: String) -> UIColor {
+        let colors = getCurrentColors()
         switch key {
         case "0"..."9":
             return colors.number
@@ -216,6 +223,10 @@ class KeyboardView: UIView {
         default:
             return colors.punctuation
         }
+    }
+    
+    private func getCurrentColors() -> KeyColors {
+        return KeyColors(userInterfaceStyle: traitCollection.userInterfaceStyle)
     }
     
     // MARK: - Standardized Button Creation & Touch Handling
@@ -236,8 +247,9 @@ class KeyboardView: UIView {
         button.backgroundColor = color
         button.layer.cornerRadius = 5
         button.layer.shadowOffset = CGSize(width: 0, height: 1)
-        button.layer.shadowOpacity = 0.3
+        button.layer.shadowOpacity = traitCollection.userInterfaceStyle == .dark ? 0.1 : 0.3
         button.layer.shadowRadius = 0
+        button.layer.shadowColor = UIColor.black.cgColor
         
         // SIMPLIFIED touch event configuration - only the primary action
         button.addTarget(self, action: action, for: .touchUpInside)
@@ -307,13 +319,36 @@ class KeyboardView: UIView {
             return
         }
         
-        debugLog("🔤 Alphabet key pressed: '\(text)' (lowercase only)")
-        delegate?.insertText(text)
+        let finalText = isShiftActive ? text.uppercased() : text
+        debugLog("🔤 Alphabet key pressed: '\(text)' -> '\(finalText)' (shift: \(isShiftActive))")
+        delegate?.insertText(finalText)
+        
+        // Auto-disable shift after typing (like iOS keyboard)
+        if isShiftActive {
+            isShiftActive = false
+            updateShiftState()
+            updateAlphabetKeyTitles()
+        }
     }
     
-    @objc private func shiftPressedDisabled() {
-        debugLog("⇧ Shift key pressed but disabled - no action taken")
-        // Shift functionality completely disabled - visual feedback only
+    @objc private func shiftPressed() {
+        debugLog("⇧ Shift key pressed - toggling case")
+        
+        // Check if keyboard is ready
+        guard isKeyboardReady() else {
+            debugLog("❌ Keyboard not ready, shift action blocked")
+            return
+        }
+        
+        isShiftActive.toggle()
+        updateShiftState()
+        updateAlphabetKeyTitles()
+        
+        // Provide haptic feedback
+        if #available(iOS 10.0, *) {
+            let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
+            feedbackGenerator.impactOccurred()
+        }
     }
     
     @objc private func backspacePressed() {
@@ -446,6 +481,45 @@ class KeyboardView: UIView {
         return keyboardVC.isReady()
     }
     
+    // MARK: - Shift State Management
+    
+    private func updateShiftState() {
+        guard let shiftButton = shiftButton else { return }
+        
+        let colors = getCurrentColors()
+        if isShiftActive {
+            shiftButton.backgroundColor = colors.shiftActive
+            if #available(iOS 15.0, *) {
+                var config = shiftButton.configuration
+                config?.baseBackgroundColor = colors.shiftActive
+                shiftButton.configuration = config
+            }
+        } else {
+            shiftButton.backgroundColor = colors.special
+            if #available(iOS 15.0, *) {
+                var config = shiftButton.configuration
+                config?.baseBackgroundColor = colors.special
+                shiftButton.configuration = config
+            }
+        }
+    }
+    
+    private func updateAlphabetKeyTitles() {
+        for (rowIndex, row) in alphabetButtons.enumerated() {
+            for (keyIndex, button) in row.enumerated() {
+                let originalKey = alphabetKeys[rowIndex][keyIndex]
+                let displayText = isShiftActive ? originalKey.uppercased() : originalKey
+                button.setTitle(displayText, for: .normal)
+                
+                if #available(iOS 15.0, *) {
+                    var config = button.configuration
+                    config?.title = displayText
+                    button.configuration = config
+                }
+            }
+        }
+    }
+    
     // MARK: - Visual Feedback (Using Built-in UIButton Behavior)
     // Removed custom touch event handlers - using built-in button visual feedback
     
@@ -461,19 +535,159 @@ class KeyboardView: UIView {
         super.sizeToFit()
         frame.size.height = 280 // Fixed height for keyboard
     }
+    
+    @available(iOS 17.0, *)
+    private func registerForTraitChanges() {
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: KeyboardView, previousTraitCollection: UITraitCollection) in
+            self.debugLog("🎨 Appearance changed, updating keyboard colors")
+            self.updateKeyboardColorsForCurrentAppearance()
+        }
+    }
+    
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        
+        // For iOS 16 and earlier, handle trait changes manually
+        if #available(iOS 17.0, *) {
+            // Modern trait change registration is handled in registerForTraitChanges()
+        } else {
+            // Fallback for older iOS versions
+            if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
+                debugLog("🎨 Appearance changed, updating keyboard colors")
+                updateKeyboardColorsForCurrentAppearance()
+            }
+        }
+    }
+    
+    private func updateKeyboardColorsForCurrentAppearance() {
+        colors = KeyColors(userInterfaceStyle: traitCollection.userInterfaceStyle)
+        
+        // Update all programmer buttons
+        for (rowIndex, row) in programmerButtons.enumerated() {
+            for (keyIndex, button) in row.enumerated() {
+                let key = numberSymbolKeys[rowIndex][keyIndex]
+                let newColor = getColorForNumberSymbolKey(key)
+                updateButtonColor(button, color: newColor)
+            }
+        }
+        
+        // Update all alphabet buttons
+        for row in alphabetButtons {
+            for button in row {
+                updateButtonColor(button, color: colors.alphabet)
+            }
+        }
+        
+        // Update special buttons
+        if let shiftBtn = shiftButton {
+            let shiftColor = isShiftActive ? colors.shiftActive : colors.special
+            updateButtonColor(shiftBtn, color: shiftColor)
+        }
+        
+        if let backspaceBtn = backspaceButton {
+            updateButtonColor(backspaceBtn, color: colors.special)
+        }
+        
+        if let spaceBtn = spaceButton {
+            updateButtonColor(spaceBtn, color: colors.special)
+        }
+        
+        if let returnBtn = returnButton {
+            updateButtonColor(returnBtn, color: colors.special)
+        }
+        
+        debugLog("✅ Keyboard colors updated for current appearance")
+    }
+    
+    private func updateButtonColor(_ button: UIButton, color: UIColor) {
+        button.backgroundColor = color
+        
+        // Update shadow opacity based on current appearance
+        button.layer.shadowOpacity = traitCollection.userInterfaceStyle == .dark ? 0.1 : 0.3
+        
+        // Update iOS 15+ configuration if available
+        if #available(iOS 15.0, *) {
+            var config = button.configuration
+            config?.baseBackgroundColor = color
+            button.configuration = config
+        }
+    }
 }
 
 // MARK: - KeyColors
 private struct KeyColors {
-    let alphabet = UIColor.systemGray5
-    let number = UIColor.systemOrange.withAlphaComponent(0.7)
-    let `operator` = UIColor.systemRed.withAlphaComponent(0.7)
-    let bracket = UIColor.systemBlue.withAlphaComponent(0.7)
-    let punctuation = UIColor.systemPurple.withAlphaComponent(0.7)
-    let quote = UIColor.systemYellow.withAlphaComponent(0.7)
-    let underscore = UIColor.systemGreen.withAlphaComponent(0.7)
-    let special = UIColor.systemGray4
-    let shiftActive = UIColor.systemBlue.withAlphaComponent(0.8)
+    let alphabet: UIColor
+    let number: UIColor
+    let `operator`: UIColor
+    let bracket: UIColor
+    let punctuation: UIColor
+    let quote: UIColor
+    let underscore: UIColor
+    let special: UIColor
+    let shiftActive: UIColor
+    
+    init(userInterfaceStyle: UIUserInterfaceStyle = .unspecified) {
+        switch userInterfaceStyle {
+        case .dark:
+            // Dark mode colors - higher contrast and better visibility
+            alphabet = UIColor.systemGray6
+            number = UIColor.systemOrange.withAlphaComponent(0.9)
+            `operator` = UIColor.systemRed.withAlphaComponent(0.9)
+            bracket = UIColor.systemBlue.withAlphaComponent(0.9)
+            punctuation = UIColor.systemPurple.withAlphaComponent(0.9)
+            quote = UIColor.systemYellow.withAlphaComponent(0.9)
+            underscore = UIColor.systemGreen.withAlphaComponent(0.9)
+            special = UIColor.systemGray5
+            shiftActive = UIColor.systemBlue.withAlphaComponent(0.95)
+        case .light:
+            // Light mode colors - moderate contrast
+            alphabet = UIColor.systemGray4
+            number = UIColor.systemOrange.withAlphaComponent(0.8)
+            `operator` = UIColor.systemRed.withAlphaComponent(0.8)
+            bracket = UIColor.systemBlue.withAlphaComponent(0.8)
+            punctuation = UIColor.systemPurple.withAlphaComponent(0.8)
+            quote = UIColor.systemYellow.withAlphaComponent(0.8)
+            underscore = UIColor.systemGreen.withAlphaComponent(0.8)
+            special = UIColor.systemGray3
+            shiftActive = UIColor.systemBlue.withAlphaComponent(0.9)
+        default:
+            // Default/unspecified - use adaptive system colors
+            alphabet = UIColor { traitCollection in
+                traitCollection.userInterfaceStyle == .dark ? UIColor.systemGray6 : UIColor.systemGray4
+            }
+            number = UIColor { traitCollection in
+                let alpha: CGFloat = traitCollection.userInterfaceStyle == .dark ? 0.9 : 0.8
+                return UIColor.systemOrange.withAlphaComponent(alpha)
+            }
+            `operator` = UIColor { traitCollection in
+                let alpha: CGFloat = traitCollection.userInterfaceStyle == .dark ? 0.9 : 0.8
+                return UIColor.systemRed.withAlphaComponent(alpha)
+            }
+            bracket = UIColor { traitCollection in
+                let alpha: CGFloat = traitCollection.userInterfaceStyle == .dark ? 0.9 : 0.8
+                return UIColor.systemBlue.withAlphaComponent(alpha)
+            }
+            punctuation = UIColor { traitCollection in
+                let alpha: CGFloat = traitCollection.userInterfaceStyle == .dark ? 0.9 : 0.8
+                return UIColor.systemPurple.withAlphaComponent(alpha)
+            }
+            quote = UIColor { traitCollection in
+                let alpha: CGFloat = traitCollection.userInterfaceStyle == .dark ? 0.9 : 0.8
+                return UIColor.systemYellow.withAlphaComponent(alpha)
+            }
+            underscore = UIColor { traitCollection in
+                let alpha: CGFloat = traitCollection.userInterfaceStyle == .dark ? 0.9 : 0.8
+                return UIColor.systemGreen.withAlphaComponent(alpha)
+            }
+            special = UIColor { traitCollection in
+                traitCollection.userInterfaceStyle == .dark ? UIColor.systemGray5 : UIColor.systemGray3
+            }
+            shiftActive = UIColor { traitCollection in
+                let alpha: CGFloat = traitCollection.userInterfaceStyle == .dark ? 0.95 : 0.9
+                return UIColor.systemBlue.withAlphaComponent(alpha)
+            }
+        }
+    }
 }
 
 // MARK: - String Extension
