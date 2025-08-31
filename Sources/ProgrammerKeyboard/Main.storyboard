@@ -60,9 +60,6 @@
                         </constraints>
                     </view>
                     <connections>
-                        <outlet property="descriptionLabel" destination="8Sf-gh-2cM" id="desc-outlet"/>
-                        <outlet property="setupButton" destination="Qw2-dR-7Mp" id="setup-outlet"/>
-                        <outlet property="titleLabel" destination="GJd-Yh-RWb" id="title-outlet"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>

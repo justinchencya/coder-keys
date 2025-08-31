@@ -22,38 +22,27 @@ class KeyboardView: UIView {
     private let secondRow = ["a", "s", "d", "f", "g", "h", "j", "k", "l"]
     private let thirdRow = ["z", "x", "c", "v", "b", "n", "m"]
     
-    // Programmer keys with Python color coding
-    private let programmerKeys = [
-        ("0", UIColor.systemOrange),      // Numbers - Orange
-        ("1", UIColor.systemOrange),
-        ("2", UIColor.systemOrange),
-        ("3", UIColor.systemOrange),
-        ("4", UIColor.systemOrange),
-        ("5", UIColor.systemOrange),
-        ("6", UIColor.systemOrange),
-        ("7", UIColor.systemOrange),
-        ("8", UIColor.systemOrange),
-        ("9", UIColor.systemOrange),
-        ("+", UIColor.systemRed),         // Operators - Red
-        ("-", UIColor.systemRed),
-        ("*", UIColor.systemRed),
-        ("/", UIColor.systemRed),
-        ("=", UIColor.systemRed),
-        ("(", UIColor.systemBlue),        // Brackets - Blue
-        (")", UIColor.systemBlue),
-        ("[", UIColor.systemBlue),
-        ("]", UIColor.systemBlue),
-        ("{", UIColor.systemBlue),
-        ("}", UIColor.systemBlue),
-        ("<", UIColor.systemBlue),
-        (">", UIColor.systemBlue),
-        (".", UIColor.systemPurple),      // Punctuation - Purple
-        (",", UIColor.systemPurple),
-        (";", UIColor.systemPurple),
-        (":", UIColor.systemPurple),
-        ("_", UIColor.systemGreen),       // Underscore - Green
-        ("\"", UIColor.systemYellow),     // Quotes - Yellow
-        ("'", UIColor.systemYellow)
+    // Programmer keys with Python color coding - simplified structure
+    private let programmerKeys: [(String, UIColor)] = [
+        // Numbers - Orange
+        ("0", UIColor.systemOrange), ("1", UIColor.systemOrange), ("2", UIColor.systemOrange),
+        ("3", UIColor.systemOrange), ("4", UIColor.systemOrange), ("5", UIColor.systemOrange),
+        ("6", UIColor.systemOrange), ("7", UIColor.systemOrange), ("8", UIColor.systemOrange), ("9", UIColor.systemOrange),
+        
+        // Operators - Red
+        ("+", UIColor.systemRed), ("-", UIColor.systemRed), ("*", UIColor.systemRed),
+        ("/", UIColor.systemRed), ("=", UIColor.systemRed),
+        
+        // Brackets - Blue
+        ("(", UIColor.systemBlue), (")", UIColor.systemBlue), ("[", UIColor.systemBlue),
+        ("]", UIColor.systemBlue), ("{", UIColor.systemBlue), ("}", UIColor.systemBlue),
+        ("<", UIColor.systemBlue), (">", UIColor.systemBlue),
+        
+        // Punctuation - Purple
+        (".", UIColor.systemPurple), (",", UIColor.systemPurple), (";", UIColor.systemPurple), (":", UIColor.systemPurple),
+        
+        // Special characters
+        ("_", UIColor.systemGreen), ("\"", UIColor.systemYellow), ("'", UIColor.systemYellow)
     ]
     
     // MARK: - UI Elements
@@ -116,7 +105,12 @@ class KeyboardView: UIView {
         for row in 0..<totalRows {
             let startIndex = row * keysPerRow
             let endIndex = min(startIndex + keysPerRow, programmerKeys.count)
-            let rowKeys = Array(programmerKeys[startIndex..<endIndex])
+            
+            // Create a temporary array for this row
+            var rowKeys: [(String, UIColor)] = []
+            for i in startIndex..<endIndex {
+                rowKeys.append(programmerKeys[i])
+            }
             
             let rowWidth = CGFloat(rowKeys.count) * (keyHeight + keySpacing) - keySpacing
             let rowX = (bounds.width - rowWidth) / 2
@@ -133,7 +127,11 @@ class KeyboardView: UIView {
     }
     
     private func createFunctionKeys() {
-        let functionRowY = keySpacing + (3 + (programmerKeys.count + 9) / 10) * (keyHeight + rowSpacing)
+        // Calculate the Y position for function keys row
+        let alphabetRows = 3 // q-p, a-l, z-m
+        let programmerRows = (programmerKeys.count + 9) / 10 // Calculate rows needed for programmer keys
+        let totalRows = alphabetRows + programmerRows
+        let functionRowY = keySpacing + CGFloat(totalRows) * (keyHeight + rowSpacing)
         
         // Next keyboard button (globe icon)
         let nextKeyboardButton = createFunctionButton(title: "🌐", action: #selector(nextKeyboardTapped))
