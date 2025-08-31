@@ -4,7 +4,7 @@ protocol KeyboardViewDelegate: AnyObject {
     func insertText(_ text: String)
     func deleteBackward()
     func insertReturn()
-    func advanceToNextInputMode()
+    func switchToNextInputMode()
 }
 
 class KeyboardView: UIView {
@@ -120,7 +120,7 @@ class KeyboardView: UIView {
         
         // Globe button
         let globeButton = createSpecialButton(title: "🌐") { [weak self] in
-            self?.delegate?.advanceToNextInputMode()
+            self?.delegate?.switchToNextInputMode()
         }
         bottomRowStack.addArrangedSubview(globeButton)
         

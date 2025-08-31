@@ -54,7 +54,7 @@ extension KeyboardViewController: KeyboardViewDelegate {
         textDocumentProxy.insertText("\n")
     }
     
-    func advanceToNextInputMode() {
-        self.advanceToNextInputMode()
+    func switchToNextInputMode() {
+        super.advanceToNextInputMode()
     }
 }
