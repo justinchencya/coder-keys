@@ -27,7 +27,6 @@ class KeyboardView: UIView {
     // Alphabet Keys Section (Middle)  
     private var alphabetSection: UIStackView!
     private var alphabetButtons: [[UIButton]] = []
-    private var isShiftEnabled = false
     private var shiftButton: UIButton?
     private var backspaceButton: UIButton?
     
@@ -54,10 +53,13 @@ class KeyboardView: UIView {
     private let enableDebugLogging = true
     
     init(keyboardViewController: KeyboardViewController) {
+        print("[KeyboardView] INITIALIZING KeyboardView")
         self.keyboardViewController = keyboardViewController
         super.init(frame: .zero)
         self.delegate = keyboardViewController
+        print("[KeyboardView] Delegate set to: \(delegate != nil)")
         setupKeyboard()
+        print("[KeyboardView] INITIALIZATION COMPLETE")
     }
     
     required init?(coder: NSCoder) {
@@ -86,6 +88,9 @@ class KeyboardView: UIView {
         createProgrammerKeySection()
         createAlphabetKeySection()
         createBottomActionSection()
+        
+        // Initially disable all buttons until keyboard is ready
+        updateButtonStates(enabled: false)
         
         debugLog("✅ Keyboard setup complete - all sections created independently")
     }
@@ -139,7 +144,7 @@ class KeyboardView: UIView {
             if rowIndex == 1 { // Second row (a-l)
                 rowStack.addArrangedSubview(createSpacer(width: 20))
             } else if rowIndex == 2 { // Third row (z-m)
-                shiftButton = createStandardButton(text: "⇧", color: colors.special, action: #selector(shiftPressed))
+                shiftButton = createStandardButton(text: "⇧", color: colors.special, action: #selector(shiftPressedDisabled))
                 shiftButton?.titleLabel?.font = UIFont.systemFont(ofSize: 20)
                 shiftButton?.widthAnchor.constraint(greaterThanOrEqualToConstant: 60).isActive = true
                 rowStack.addArrangedSubview(shiftButton!)
@@ -234,15 +239,41 @@ class KeyboardView: UIView {
         button.layer.shadowOpacity = 0.3
         button.layer.shadowRadius = 0
         
-        // STANDARDIZED touch event configuration - ALL buttons use identical setup
+        // SIMPLIFIED touch event configuration - only the primary action
         button.addTarget(self, action: action, for: .touchUpInside)
-        button.addTarget(self, action: #selector(keyTouchDown(_:)), for: .touchDown)
-        button.addTarget(self, action: #selector(keyTouchUp(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        
+        // Enable modern visual feedback for iOS 15+
+        if #available(iOS 15.0, *) {
+            var config = UIButton.Configuration.filled()
+            config.baseBackgroundColor = color
+            config.title = text
+            config.baseForegroundColor = .label
+            config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+                var outgoing = incoming
+                // Reduced font size to prevent truncation
+                outgoing.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+                return outgoing
+            }
+            config.cornerStyle = .small
+            config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 4, bottom: 8, trailing: 4)
+            button.configuration = config
+        } else {
+            button.showsTouchWhenHighlighted = true
+            button.adjustsImageWhenHighlighted = true
+        }
         
         // Standard constraints
         button.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
         
-        debugLog("🔲 Created button '\(text)' with standardized touch handling")
+        print("[KeyboardView] 🔲 Created SIMPLIFIED button '\(text)' - action: \(action)")
+        
+        // Validate button event configuration for critical buttons
+        if text == "space" || text == "return" {
+            print("[KeyboardView] 🔍 CRITICAL BUTTON '\(text)' - SIMPLIFIED CONFIG")
+            print("[KeyboardView]    - Only .touchUpInside: \(action)")
+            print("[KeyboardView]    - Built-in visual feedback enabled")
+        }
+        
         return button
     }
     
@@ -256,154 +287,167 @@ class KeyboardView: UIView {
     
     @objc private func programmerKeyPressed(_ sender: UIButton) {
         guard let text = sender.currentTitle else { return }
+        
+        // Check if keyboard is ready
+        guard isKeyboardReady() else {
+            debugLog("❌ Keyboard not ready, programmer key '\(text)' action blocked")
+            return
+        }
+        
         debugLog("🔢 Programmer key pressed: '\(text)'")
         delegate?.insertText(text)
     }
     
     @objc private func alphabetKeyPressed(_ sender: UIButton) {
         guard let text = sender.currentTitle else { return }
-        let outputText = isShiftEnabled ? text.uppercased() : text
-        debugLog("🔤 Alphabet key pressed: '\(text)' -> '\(outputText)' (shift: \(isShiftEnabled))")
-        delegate?.insertText(outputText)
         
-        // Auto-disable shift after single use (like iOS keyboard) - ONLY affects alphabet section
-        if isShiftEnabled {
-            toggleShiftStateOnly()
+        // Check if keyboard is ready
+        guard isKeyboardReady() else {
+            debugLog("❌ Keyboard not ready, alphabet key '\(text)' action blocked")
+            return
         }
+        
+        debugLog("🔤 Alphabet key pressed: '\(text)' (lowercase only)")
+        delegate?.insertText(text)
     }
     
-    @objc private func shiftPressed() {
-        debugLog("🚨 SHIFT BUTTON PRESSED - Starting comprehensive check")
-        debugLog("   - Current shift state: \(isShiftEnabled)")
-        debugLog("   - Space button exists: \(spaceButton != nil)")
-        debugLog("   - Return button exists: \(returnButton != nil)")
-        debugLog("   - Space button enabled: \(spaceButton?.isEnabled ?? false)")
-        debugLog("   - Return button enabled: \(returnButton?.isEnabled ?? false)")
-        
-        toggleShiftStateOnly()
-        
-        debugLog("🔍 POST-SHIFT state check:")
-        debugLog("   - New shift state: \(isShiftEnabled)")
-        debugLog("   - Space button still enabled: \(spaceButton?.isEnabled ?? false)")
-        debugLog("   - Return button still enabled: \(returnButton?.isEnabled ?? false)")
+    @objc private func shiftPressedDisabled() {
+        debugLog("⇧ Shift key pressed but disabled - no action taken")
+        // Shift functionality completely disabled - visual feedback only
     }
     
     @objc private func backspacePressed() {
         debugLog("⌫ Backspace pressed")
+        
+        // Check if keyboard is ready
+        guard isKeyboardReady() else {
+            debugLog("❌ Keyboard not ready, backspace action blocked")
+            return
+        }
+        
         delegate?.deleteBackward()
     }
     
     @objc private func spacePressed() {
-        debugLog("🚨 SPACE BUTTON PRESSED - Starting comprehensive check")
-        debugLog("   - Delegate exists: \(delegate != nil)")
-        debugLog("   - KeyboardViewController exists: \(keyboardViewController != nil)")
-        debugLog("   - Current shift state: \(isShiftEnabled)")
+        print("[KeyboardView] 🚀 SPACE BUTTON ACTION CALLED!")
+        debugLog("🚀 Space pressed - simplified logic")
         
+        // Validate delegate connection
         guard let delegate = delegate else { 
+            print("[KeyboardView] ❌ Space pressed but delegate is nil")
             debugLog("❌ Space pressed but delegate is nil")
             return 
         }
         
-        debugLog("✅ Space delegate confirmed - inserting space character")
+        // Check if keyboard is ready through the view controller
+        guard let keyboardVC = keyboardViewController,
+              keyboardVC.isReady() else {
+            print("[KeyboardView] ❌ Keyboard not ready, space action blocked")
+            debugLog("❌ Keyboard not ready, space action blocked")
+            return
+        }
+        
+        print("[KeyboardView] ✅ Space button calling delegate.insertText")
         delegate.insertText(" ")
-        debugLog("✅ Space insertion completed successfully")
+        print("[KeyboardView] ✅ Space insertion call completed")
+        debugLog("✅ Space inserted successfully")
         
         // Provide haptic feedback
         if #available(iOS 10.0, *) {
             let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
             feedbackGenerator.impactOccurred()
-            debugLog("✅ Space haptic feedback triggered")
         }
     }
     
     @objc private func returnPressed() {
-        debugLog("🚨 RETURN BUTTON PRESSED - Starting comprehensive check")
-        debugLog("   - Delegate exists: \(delegate != nil)")
-        debugLog("   - KeyboardViewController exists: \(keyboardViewController != nil)")
-        debugLog("   - Current shift state: \(isShiftEnabled)")
+        print("[KeyboardView] ↵ RETURN BUTTON ACTION CALLED!")
+        debugLog("↵ Return pressed - simplified logic")
         
+        // Validate delegate connection
         guard let delegate = delegate else {
+            print("[KeyboardView] ❌ Return pressed but delegate is nil") 
             debugLog("❌ Return pressed but delegate is nil") 
             return 
         }
         
-        debugLog("✅ Return delegate confirmed - inserting return")
+        // Check if keyboard is ready through the view controller
+        guard let keyboardVC = keyboardViewController,
+              keyboardVC.isReady() else {
+            print("[KeyboardView] ❌ Keyboard not ready, return action blocked")
+            debugLog("❌ Keyboard not ready, return action blocked")
+            return
+        }
+        
+        print("[KeyboardView] ✅ Return button calling delegate.insertReturn")
         delegate.insertReturn()
-        debugLog("✅ Return insertion completed successfully")
+        print("[KeyboardView] ✅ Return insertion call completed")
+        debugLog("✅ Return inserted successfully")
         
         // Provide haptic feedback
         if #available(iOS 10.0, *) {
             let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
             feedbackGenerator.impactOccurred()
-            debugLog("✅ Return haptic feedback triggered")
         }
     }
     
-    // MARK: - Isolated State Management (Only Affects Alphabet Section)
     
-    private func toggleShiftStateOnly() {
-        debugLog("🔄 Toggling shift state: \(isShiftEnabled) -> \(!isShiftEnabled)")
-        isShiftEnabled.toggle()
-        updateAlphabetSectionOnly()
-    }
+    // MARK: - Button State Management
     
-    private func updateAlphabetSectionOnly() {
-        debugLog("📝 Updating alphabet section only - shift: \(isShiftEnabled)")
+    private func updateButtonStates(enabled: Bool) {
+        debugLog("🔄 Updating button states: \(enabled ? "enabled" : "disabled")")
         
-        // Update shift button appearance
-        if isShiftEnabled {
-            shiftButton?.backgroundColor = colors.shiftActive
-        } else {
-            shiftButton?.backgroundColor = colors.special
-        }
-        
-        // Update ONLY alphabet button display text - NO other sections affected
-        for (rowIndex, row) in alphabetButtons.enumerated() {
-            for (keyIndex, button) in row.enumerated() {
-                let originalKey = alphabetKeys[rowIndex][keyIndex]
-                let displayText = isShiftEnabled ? originalKey.uppercased() : originalKey
-                button.setTitle(displayText, for: .normal)
+        // Update programmer buttons
+        for row in programmerButtons {
+            for button in row {
+                button.isEnabled = enabled
+                button.alpha = enabled ? 1.0 : 0.6
             }
         }
         
-        debugLog("✅ Alphabet section updated - \(programmerButtons.count) programmer rows UNTOUCHED, space/return UNTOUCHED")
-    }
-    
-    // MARK: - Standardized Touch Event Handling
-    
-    @objc private func keyTouchDown(_ sender: UIButton) {
-        let buttonTitle = sender.currentTitle ?? "unknown"
-        debugLog("👇 Touch down on button: '\(buttonTitle)'")
-        
-        // Track if this is a critical button
-        if buttonTitle == "space" || buttonTitle == "return" {
-            debugLog("🔍 Critical button '\(buttonTitle)' touch down - detailed tracking")
-            debugLog("   - Button enabled: \(sender.isEnabled)")
-            debugLog("   - Button user interaction: \(sender.isUserInteractionEnabled)")
-            debugLog("   - Button frame: \(sender.frame)")
-            debugLog("   - Button superview: \(sender.superview != nil)")
+        // Update alphabet buttons
+        for row in alphabetButtons {
+            for button in row {
+                button.isEnabled = enabled
+                button.alpha = enabled ? 1.0 : 0.6
+            }
         }
         
-        // Immediate visual feedback for better responsiveness
-        sender.alpha = 0.5
-        sender.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+        // Update special buttons
+        shiftButton?.isEnabled = enabled
+        shiftButton?.alpha = enabled ? 1.0 : 0.6
+        
+        backspaceButton?.isEnabled = enabled
+        backspaceButton?.alpha = enabled ? 1.0 : 0.6
+        
+        // Update bottom action buttons
+        spaceButton?.isEnabled = enabled
+        spaceButton?.alpha = enabled ? 1.0 : 0.6
+        
+        returnButton?.isEnabled = enabled
+        returnButton?.alpha = enabled ? 1.0 : 0.6
+        
+        debugLog("✅ Button states updated")
     }
     
-    @objc private func keyTouchUp(_ sender: UIButton) {
-        let buttonTitle = sender.currentTitle ?? "unknown"
-        debugLog("👆 Touch up on button: '\(buttonTitle)'")
-        
-        // Track if this is a critical button
-        if buttonTitle == "space" || buttonTitle == "return" {
-            debugLog("🔍 Critical button '\(buttonTitle)' touch up - detailed tracking")
-        }
-        
-        // Consistent animation back to normal state for all buttons
-        UIView.animate(withDuration: 0.05, delay: 0, options: [.curveEaseOut, .allowUserInteraction], animations: {
-            sender.alpha = 1.0
-            sender.transform = CGAffineTransform.identity
-        }, completion: nil)
+    // MARK: - Public Interface for Keyboard State
+    
+    func enableButtons() {
+        updateButtonStates(enabled: true)
+        debugLog("🎯 All buttons are now ENABLED and ready for input")
     }
+    
+    func disableButtons() {
+        updateButtonStates(enabled: false)
+        debugLog("⏸️ All buttons are now DISABLED - waiting for keyboard to be ready")
+    }
+    
+    func isKeyboardReady() -> Bool {
+        guard let keyboardVC = keyboardViewController else { return false }
+        return keyboardVC.isReady()
+    }
+    
+    // MARK: - Visual Feedback (Using Built-in UIButton Behavior)
+    // Removed custom touch event handlers - using built-in button visual feedback
     
     // MARK: - Debug Instrumentation
     
