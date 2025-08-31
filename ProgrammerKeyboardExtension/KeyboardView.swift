@@ -15,9 +15,11 @@ class KeyboardView: UIView {
     // Color scheme for programmer keyboard
     private let colors = KeyColors()
     
-    // Shift state management
+    // Keyboard state management
     private var isShiftEnabled = false
+    private var isNumberMode = false
     private var shiftButton: UIButton?
+    private var modeButton: UIButton?
     
     // Key layout definitions - lowercase by default
     private let alphabetKeys = [
@@ -26,12 +28,16 @@ class KeyboardView: UIView {
         ["z", "x", "c", "v", "b", "n", "m"]
     ]
     
-    private let numberKeys = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
-    private let operatorKeys = ["+", "-", "*", "/", "=", "(", ")", "[", "]", "{", "}"]
-    private let punctuationKeys = ["<", ">", ".", ",", ";", ":", "_", "\"", "'"]
+    // Number and symbol layout for programmer keyboard
+    private let numberSymbolKeys = [
+        ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+        ["-", "/", ":", ";", "(", ")", "$", "&", "@", "\""],
+        [".", ",", "?", "!", "'", "+", "=", "[", "]", "{", "}"]
+    ]
     
     private var stackView: UIStackView!
     private var alphabetButtons: [[UIButton]] = []
+    private var currentKeyButtons: [[UIButton]] = []
     
     init(keyboardViewController: KeyboardViewController) {
         self.keyboardViewController = keyboardViewController
@@ -63,74 +69,83 @@ class KeyboardView: UIView {
     }
     
     private func createKeyboardRows() {
-        // Number row (moved to top)
-        let numberRowStack = createRowStackView()
-        for key in numberKeys {
-            let button = createKeyButton(text: key, color: colors.number)
-            numberRowStack.addArrangedSubview(button)
-        }
-        stackView.addArrangedSubview(numberRowStack)
+        createMainKeyRows()
+        createBottomRow()
+    }
+    
+    private func createMainKeyRows() {
+        // Clear existing rows
+        stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        currentKeyButtons.removeAll()
         
-        // Operator row (moved above alphabet)
-        let operatorRowStack = createRowStackView()
-        for key in operatorKeys {
-            let color = key.contains(["(", ")", "[", "]", "{", "}"]) ? colors.bracket : colors.operator
-            let button = createKeyButton(text: key, color: color)
-            operatorRowStack.addArrangedSubview(button)
-        }
-        stackView.addArrangedSubview(operatorRowStack)
+        let keysToUse = isNumberMode ? numberSymbolKeys : alphabetKeys
         
-        // Punctuation row (moved above alphabet)
-        let punctuationRowStack = createRowStackView()
-        for key in punctuationKeys {
-            let color: UIColor
-            if key == "\"" || key == "'" {
-                color = colors.quote
-            } else if key == "_" {
-                color = colors.underscore
-            } else {
-                color = colors.punctuation
-            }
-            let button = createKeyButton(text: key, color: color)
-            punctuationRowStack.addArrangedSubview(button)
-        }
-        stackView.addArrangedSubview(punctuationRowStack)
-        
-        // Alphabet rows (now at bottom)
-        for (rowIndex, row) in alphabetKeys.enumerated() {
+        // Create three main rows
+        for (rowIndex, row) in keysToUse.enumerated() {
             let rowStack = createRowStackView()
             var buttonRow: [UIButton] = []
             
-            // Add shift button to first alphabet row
-            if rowIndex == 0 {
-                let shift = createShiftButton()
-                rowStack.addArrangedSubview(shift)
-            } else if rowIndex == 1 { // Second row (a-l)
-                rowStack.addArrangedSubview(createSpacer(width: 20)) // Offset for visual alignment
-            } else if rowIndex == 2 { // Third row (z-m)
-                rowStack.addArrangedSubview(createSpacer(width: 40)) // Larger offset
+            // Add left-side button for appropriate rows
+            if !isNumberMode {
+                // Alphabet mode
+                if rowIndex == 0 {
+                    // No special button for top row - just letters
+                } else if rowIndex == 1 { // Second row (a-l)
+                    rowStack.addArrangedSubview(createSpacer(width: 20)) // Offset for visual alignment
+                } else if rowIndex == 2 { // Third row (z-m)
+                    let shiftButton = createShiftButton()
+                    rowStack.addArrangedSubview(shiftButton)
+                }
             }
             
+            // Add main keys for the row
             for key in row {
-                let button = createAlphabetButton(text: key, color: colors.alphabet)
+                let button: UIButton
+                if isNumberMode {
+                    let color = getColorForNumberSymbolKey(key)
+                    button = createKeyButton(text: key, color: color)
+                } else {
+                    button = createAlphabetButton(text: key, color: colors.alphabet)
+                }
                 buttonRow.append(button)
                 rowStack.addArrangedSubview(button)
             }
             
-            // Add backspace to the third alphabet row
-            if rowIndex == 2 {
+            // Add right-side button for appropriate rows
+            if !isNumberMode && rowIndex == 2 {
+                // Add backspace to the third alphabet row
+                let backspaceButton = createBackspaceButton()
+                rowStack.addArrangedSubview(backspaceButton)
+            } else if isNumberMode && rowIndex == 2 {
+                // Add backspace to number mode third row too
                 let backspaceButton = createBackspaceButton()
                 rowStack.addArrangedSubview(backspaceButton)
             }
             
-            alphabetButtons.append(buttonRow)
+            if !isNumberMode && rowIndex == 0 {
+                alphabetButtons.append(buttonRow)
+            } else if !isNumberMode {
+                alphabetButtons.append(buttonRow)
+            }
+            currentKeyButtons.append(buttonRow)
             stackView.addArrangedSubview(rowStack)
         }
-        
-        // Bottom row with special keys (no globe button)
+    }
+    
+    private func createBottomRow() {
+        // Bottom row with iOS standard layout: [123] [😊] [    space    ] [return]
         let bottomRowStack = createRowStackView()
+        bottomRowStack.distribution = .fill // Allow different button sizes
         
-        // Space bar (wider)
+        // Mode button (123 / ABC)
+        let modeBtn = createModeButton()
+        bottomRowStack.addArrangedSubview(modeBtn)
+        
+        // Emoji button (placeholder)
+        let emojiButton = createEmojiButton()
+        bottomRowStack.addArrangedSubview(emojiButton)
+        
+        // Space bar (takes most space)
         let spaceButton = createSpaceButton()
         bottomRowStack.addArrangedSubview(spaceButton)
         
@@ -139,6 +154,23 @@ class KeyboardView: UIView {
         bottomRowStack.addArrangedSubview(returnButton)
         
         stackView.addArrangedSubview(bottomRowStack)
+    }
+    
+    private func getColorForNumberSymbolKey(_ key: String) -> UIColor {
+        switch key {
+        case "0"..."9":
+            return colors.number
+        case "(", ")", "[", "]", "{", "}":
+            return colors.bracket
+        case "+", "-", "*", "/", "=":
+            return colors.operator
+        case "\"", "'":
+            return colors.quote
+        case "_":
+            return colors.underscore
+        default:
+            return colors.punctuation
+        }
     }
     
     private func createRowStackView() -> UIStackView {
@@ -210,6 +242,49 @@ class KeyboardView: UIView {
         button.widthAnchor.constraint(greaterThanOrEqualToConstant: 60).isActive = true
         
         shiftButton = button
+        return button
+    }
+    
+    private func createModeButton() -> UIButton {
+        let button = UIButton(type: .system)
+        let title = isNumberMode ? "ABC" : "123"
+        button.setTitle(title, for: .normal)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        button.setTitleColor(.label, for: .normal)
+        button.backgroundColor = colors.special
+        button.layer.cornerRadius = 5
+        button.layer.shadowOffset = CGSize(width: 0, height: 1)
+        button.layer.shadowOpacity = 0.3
+        button.layer.shadowRadius = 0
+        
+        button.addTarget(self, action: #selector(modePressed), for: .touchUpInside)
+        button.addTarget(self, action: #selector(keyTouchDown(_:)), for: .touchDown)
+        button.addTarget(self, action: #selector(keyTouchUp(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        
+        button.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
+        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 60).isActive = true
+        
+        modeButton = button
+        return button
+    }
+    
+    private func createEmojiButton() -> UIButton {
+        let button = UIButton(type: .system)
+        button.setTitle("😊", for: .normal)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 18)
+        button.backgroundColor = colors.special
+        button.layer.cornerRadius = 5
+        button.layer.shadowOffset = CGSize(width: 0, height: 1)
+        button.layer.shadowOpacity = 0.3
+        button.layer.shadowRadius = 0
+        
+        button.addTarget(self, action: #selector(emojiPressed), for: .touchUpInside)
+        button.addTarget(self, action: #selector(keyTouchDown(_:)), for: .touchDown)
+        button.addTarget(self, action: #selector(keyTouchUp(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        
+        button.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
+        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 60).isActive = true
+        
         return button
     }
     
@@ -303,6 +378,16 @@ class KeyboardView: UIView {
         toggleShift()
     }
     
+    @objc private func modePressed() {
+        toggleMode()
+    }
+    
+    @objc private func emojiPressed() {
+        // Placeholder for emoji functionality
+        // For now, just add a smiley face
+        delegate?.insertText("😊")
+    }
+    
     @objc private func backspacePressed() {
         delegate?.deleteBackward()
     }
@@ -319,6 +404,15 @@ class KeyboardView: UIView {
         isShiftEnabled.toggle()
         updateShiftButton()
         updateAlphabetButtons()
+    }
+    
+    private func toggleMode() {
+        isNumberMode.toggle()
+        // Clear alphabetButtons when switching modes
+        alphabetButtons.removeAll()
+        createMainKeyRows()
+        // Update the mode button text
+        modeButton?.setTitle(isNumberMode ? "ABC" : "123", for: .normal)
     }
     
     private func updateShiftButton() {
