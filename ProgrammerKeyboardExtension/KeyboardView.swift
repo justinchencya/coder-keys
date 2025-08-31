@@ -15,9 +15,26 @@ class KeyboardView: UIView {
     // Color scheme for programmer keyboard
     private let colors = KeyColors()
     
-    // Keyboard state management
+    // MARK: - Separated Architecture Components
+    
+    // Main layout container
+    private var stackView: UIStackView!
+    
+    // Programmer Keys Section (Top)
+    private var programmerSection: UIStackView!
+    private var programmerButtons: [[UIButton]] = []
+    
+    // Alphabet Keys Section (Middle)  
+    private var alphabetSection: UIStackView!
+    private var alphabetButtons: [[UIButton]] = []
     private var isShiftEnabled = false
     private var shiftButton: UIButton?
+    private var backspaceButton: UIButton?
+    
+    // Bottom Action Section (Space/Return)
+    private var bottomActionSection: UIStackView!
+    private var spaceButton: UIButton?
+    private var returnButton: UIButton?
     
     // Key layout definitions - lowercase by default
     private let alphabetKeys = [
@@ -33,9 +50,8 @@ class KeyboardView: UIView {
         ["(", ")", "[", "]", "{", "}", "'", "\"", ";", ":"]
     ]
     
-    private var stackView: UIStackView!
-    private var alphabetButtons: [[UIButton]] = []
-    private var currentKeyButtons: [[UIButton]] = []
+    // Debug logging
+    private let enableDebugLogging = true
     
     init(keyboardViewController: KeyboardViewController) {
         self.keyboardViewController = keyboardViewController
@@ -49,9 +65,12 @@ class KeyboardView: UIView {
     }
     
     private func setupKeyboard() {
+        debugLog("🚀 Setting up keyboard with separated architecture")
+        
+        // Create main container
         stackView = UIStackView()
         stackView.axis = .vertical
-        stackView.distribution = .fillEqually
+        stackView.distribution = .fill  // Changed from .fillEqually to allow custom sizing
         stackView.spacing = 8
         stackView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stackView)
@@ -63,81 +82,116 @@ class KeyboardView: UIView {
             stackView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8)
         ])
         
-        createKeyboardRows()
-    }
-    
-    private func createKeyboardRows() {
-        createMainKeyRows()
-        createBottomRow()
-    }
-    
-    private func createMainKeyRows() {
-        // Clear existing rows
-        stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        currentKeyButtons.removeAll()
+        // Create independent sections
+        createProgrammerKeySection()
+        createAlphabetKeySection()
+        createBottomActionSection()
         
-        // Always show number/programmer keys at the top first
+        debugLog("✅ Keyboard setup complete - all sections created independently")
+    }
+    
+    // MARK: - Programmer Keys Section (Top Rows)
+    private func createProgrammerKeySection() {
+        debugLog("🔢 Creating programmer key section")
+        
+        programmerSection = UIStackView()
+        programmerSection.axis = .vertical
+        programmerSection.distribution = .fillEqually
+        programmerSection.spacing = 8
+        
+        programmerButtons.removeAll()
+        
         for (_, row) in numberSymbolKeys.enumerated() {
             let rowStack = createRowStackView()
             var buttonRow: [UIButton] = []
             
-            // Add main keys for the row
             for key in row {
                 let color = getColorForNumberSymbolKey(key)
-                let button = createKeyButton(text: key, color: color)
+                let button = createStandardButton(text: key, color: color, action: #selector(programmerKeyPressed(_:)))
                 buttonRow.append(button)
                 rowStack.addArrangedSubview(button)
             }
             
-            currentKeyButtons.append(buttonRow)
-            stackView.addArrangedSubview(rowStack)
+            programmerButtons.append(buttonRow)
+            programmerSection.addArrangedSubview(rowStack)
         }
         
-        // Then add alphabet keys below
+        stackView.addArrangedSubview(programmerSection)
+        debugLog("✅ Programmer section created with \(programmerButtons.count) rows")
+    }
+    
+    // MARK: - Alphabet Keys Section (Middle Rows)
+    private func createAlphabetKeySection() {
+        debugLog("🔤 Creating alphabet key section")
+        
+        alphabetSection = UIStackView()
+        alphabetSection.axis = .vertical
+        alphabetSection.distribution = .fillEqually
+        alphabetSection.spacing = 8
+        
+        alphabetButtons.removeAll()
+        
         for (rowIndex, row) in alphabetKeys.enumerated() {
             let rowStack = createRowStackView()
             var buttonRow: [UIButton] = []
             
-            // Add left-side button for appropriate rows
+            // Add left-side elements for appropriate rows
             if rowIndex == 1 { // Second row (a-l)
-                rowStack.addArrangedSubview(createSpacer(width: 20)) // Offset for visual alignment
+                rowStack.addArrangedSubview(createSpacer(width: 20))
             } else if rowIndex == 2 { // Third row (z-m)
-                let shiftButton = createShiftButton()
-                rowStack.addArrangedSubview(shiftButton)
+                shiftButton = createStandardButton(text: "⇧", color: colors.special, action: #selector(shiftPressed))
+                shiftButton?.titleLabel?.font = UIFont.systemFont(ofSize: 20)
+                shiftButton?.widthAnchor.constraint(greaterThanOrEqualToConstant: 60).isActive = true
+                rowStack.addArrangedSubview(shiftButton!)
             }
             
-            // Add main keys for the row
+            // Add alphabet keys for the row
             for key in row {
-                let button = createAlphabetButton(text: key, color: colors.alphabet)
+                let button = createStandardButton(text: key, color: colors.alphabet, action: #selector(alphabetKeyPressed(_:)))
                 buttonRow.append(button)
                 rowStack.addArrangedSubview(button)
             }
             
             // Add backspace to the third alphabet row
             if rowIndex == 2 {
-                let backspaceButton = createBackspaceButton()
-                rowStack.addArrangedSubview(backspaceButton)
+                backspaceButton = createStandardButton(text: "⌫", color: colors.special, action: #selector(backspacePressed))
+                backspaceButton?.titleLabel?.font = UIFont.systemFont(ofSize: 22)
+                backspaceButton?.widthAnchor.constraint(greaterThanOrEqualToConstant: 60).isActive = true
+                rowStack.addArrangedSubview(backspaceButton!)
             }
             
             alphabetButtons.append(buttonRow)
-            stackView.addArrangedSubview(rowStack)
+            alphabetSection.addArrangedSubview(rowStack)
         }
+        
+        stackView.addArrangedSubview(alphabetSection)
+        debugLog("✅ Alphabet section created with \(alphabetButtons.count) rows")
     }
     
-    private func createBottomRow() {
-        // Bottom row: [    space    ] [return] - equal sizes  
-        let bottomRowStack = createRowStackView()
-        bottomRowStack.distribution = .fillEqually // Equal button sizes
+    // MARK: - Bottom Action Section (Space/Return)
+    private func createBottomActionSection() {
+        debugLog("⌨️ Creating bottom action section")
         
-        // Space bar
-        let spaceButton = createSpaceButton()
-        bottomRowStack.addArrangedSubview(spaceButton)
+        bottomActionSection = UIStackView()
+        bottomActionSection.axis = .horizontal
+        bottomActionSection.distribution = .fillEqually
+        bottomActionSection.spacing = 6
         
-        // Return button  
-        let returnButton = createReturnButton()
-        bottomRowStack.addArrangedSubview(returnButton)
+        // Create space button - NEVER recreated
+        spaceButton = createStandardButton(text: "space", color: colors.special, action: #selector(spacePressed))
+        spaceButton?.titleLabel?.font = UIFont.systemFont(ofSize: 16)
+        bottomActionSection.addArrangedSubview(spaceButton!)
         
-        stackView.addArrangedSubview(bottomRowStack)
+        // Create return button - NEVER recreated
+        returnButton = createStandardButton(text: "return", color: colors.special, action: #selector(returnPressed))
+        returnButton?.titleLabel?.font = UIFont.systemFont(ofSize: 16)
+        bottomActionSection.addArrangedSubview(returnButton!)
+        
+        // Set proper height constraint for bottom row to match other keyboard rows
+        bottomActionSection.heightAnchor.constraint(equalToConstant: 48).isActive = true
+        
+        stackView.addArrangedSubview(bottomActionSection)
+        debugLog("✅ Bottom action section created - space and return buttons are persistent")
     }
     
     private func getColorForNumberSymbolKey(_ key: String) -> UIColor {
@@ -159,6 +213,8 @@ class KeyboardView: UIView {
         }
     }
     
+    // MARK: - Standardized Button Creation & Touch Handling
+    
     private func createRowStackView() -> UIStackView {
         let stackView = UIStackView()
         stackView.axis = .horizontal
@@ -167,7 +223,7 @@ class KeyboardView: UIView {
         return stackView
     }
     
-    private func createKeyButton(text: String, color: UIColor) -> UIButton {
+    private func createStandardButton(text: String, color: UIColor, action: Selector) -> UIButton {
         let button = UIButton(type: .system)
         button.setTitle(text, for: .normal)
         button.titleLabel?.font = UIFont.systemFont(ofSize: 22, weight: .medium)
@@ -178,138 +234,15 @@ class KeyboardView: UIView {
         button.layer.shadowOpacity = 0.3
         button.layer.shadowRadius = 0
         
-        button.addTarget(self, action: #selector(keyPressed(_:)), for: .touchUpInside)
+        // STANDARDIZED touch event configuration - ALL buttons use identical setup
+        button.addTarget(self, action: action, for: .touchUpInside)
         button.addTarget(self, action: #selector(keyTouchDown(_:)), for: .touchDown)
         button.addTarget(self, action: #selector(keyTouchUp(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel])
         
-        // Set minimum height
+        // Standard constraints
         button.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
         
-        return button
-    }
-    
-    private func createAlphabetButton(text: String, color: UIColor) -> UIButton {
-        let button = UIButton(type: .system)
-        button.setTitle(text, for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 22, weight: .medium)
-        button.setTitleColor(.label, for: .normal)
-        button.backgroundColor = color
-        button.layer.cornerRadius = 5
-        button.layer.shadowOffset = CGSize(width: 0, height: 1)
-        button.layer.shadowOpacity = 0.3
-        button.layer.shadowRadius = 0
-        
-        button.addTarget(self, action: #selector(alphabetKeyPressed(_:)), for: .touchUpInside)
-        button.addTarget(self, action: #selector(keyTouchDown(_:)), for: .touchDown)
-        button.addTarget(self, action: #selector(keyTouchUp(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel])
-        
-        // Set minimum height
-        button.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
-        
-        return button
-    }
-    
-    private func createShiftButton() -> UIButton {
-        let button = UIButton(type: .system)
-        button.setTitle("⇧", for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 20)
-        button.setTitleColor(.label, for: .normal)
-        button.backgroundColor = colors.special
-        button.layer.cornerRadius = 5
-        button.layer.shadowOffset = CGSize(width: 0, height: 1)
-        button.layer.shadowOpacity = 0.3
-        button.layer.shadowRadius = 0
-        
-        button.addTarget(self, action: #selector(shiftPressed), for: .touchUpInside)
-        button.addTarget(self, action: #selector(keyTouchDown(_:)), for: .touchDown)
-        button.addTarget(self, action: #selector(keyTouchUp(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel])
-        
-        button.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
-        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 60).isActive = true
-        
-        shiftButton = button
-        return button
-    }
-    
-    
-    private func createEmojiButton() -> UIButton {
-        let button = UIButton(type: .system)
-        button.setTitle("😊", for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 18)
-        button.backgroundColor = colors.special
-        button.layer.cornerRadius = 5
-        button.layer.shadowOffset = CGSize(width: 0, height: 1)
-        button.layer.shadowOpacity = 0.3
-        button.layer.shadowRadius = 0
-        
-        button.addTarget(self, action: #selector(emojiPressed), for: .touchUpInside)
-        button.addTarget(self, action: #selector(keyTouchDown(_:)), for: .touchDown)
-        button.addTarget(self, action: #selector(keyTouchUp(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel])
-        
-        button.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
-        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 60).isActive = true
-        
-        return button
-    }
-    
-    private func createBackspaceButton() -> UIButton {
-        let button = UIButton(type: .system)
-        button.setTitle("⌫", for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 22)
-        button.setTitleColor(.label, for: .normal)
-        button.backgroundColor = colors.special
-        button.layer.cornerRadius = 5
-        button.layer.shadowOffset = CGSize(width: 0, height: 1)
-        button.layer.shadowOpacity = 0.3
-        button.layer.shadowRadius = 0
-        
-        button.addTarget(self, action: #selector(backspacePressed), for: .touchUpInside)
-        button.addTarget(self, action: #selector(keyTouchDown(_:)), for: .touchDown)
-        button.addTarget(self, action: #selector(keyTouchUp(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel])
-        
-        button.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
-        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 60).isActive = true
-        
-        return button
-    }
-    
-    private func createSpaceButton() -> UIButton {
-        let button = UIButton(type: .system)
-        button.setTitle("space", for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 16)
-        button.setTitleColor(.secondaryLabel, for: .normal)
-        button.backgroundColor = colors.special
-        button.layer.cornerRadius = 5
-        button.layer.shadowOffset = CGSize(width: 0, height: 1)
-        button.layer.shadowOpacity = 0.2
-        button.layer.shadowRadius = 0
-        
-        button.addTarget(self, action: #selector(spacePressed), for: .touchUpInside)
-        button.addTarget(self, action: #selector(keyTouchDown(_:)), for: .touchDown)
-        button.addTarget(self, action: #selector(keyTouchUp(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit])
-        
-        button.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
-        
-        return button
-    }
-    
-    private func createReturnButton() -> UIButton {
-        let button = UIButton(type: .system)
-        button.setTitle("return", for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 16)
-        button.setTitleColor(.label, for: .normal)
-        button.backgroundColor = colors.special
-        button.layer.cornerRadius = 5
-        button.layer.shadowOffset = CGSize(width: 0, height: 1)
-        button.layer.shadowOpacity = 0.2
-        button.layer.shadowRadius = 0
-        
-        button.addTarget(self, action: #selector(returnPressed), for: .touchUpInside)
-        button.addTarget(self, action: #selector(keyTouchDown(_:)), for: .touchDown)
-        button.addTarget(self, action: #selector(keyTouchUp(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit])
-        
-        button.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
-        
+        debugLog("🔲 Created button '\(text)' with standardized touch handling")
         return button
     }
     
@@ -319,63 +252,112 @@ class KeyboardView: UIView {
         return spacer
     }
     
-    @objc private func keyPressed(_ sender: UIButton) {
+    // MARK: - Button Action Methods (Separated by Section)
+    
+    @objc private func programmerKeyPressed(_ sender: UIButton) {
         guard let text = sender.currentTitle else { return }
+        debugLog("🔢 Programmer key pressed: '\(text)'")
         delegate?.insertText(text)
     }
     
     @objc private func alphabetKeyPressed(_ sender: UIButton) {
         guard let text = sender.currentTitle else { return }
         let outputText = isShiftEnabled ? text.uppercased() : text
+        debugLog("🔤 Alphabet key pressed: '\(text)' -> '\(outputText)' (shift: \(isShiftEnabled))")
         delegate?.insertText(outputText)
         
-        // Auto-disable shift after single use (like iOS keyboard)
+        // Auto-disable shift after single use (like iOS keyboard) - ONLY affects alphabet section
         if isShiftEnabled {
-            toggleShift()
+            toggleShiftStateOnly()
         }
     }
     
     @objc private func shiftPressed() {
-        toggleShift()
-    }
-    
-    
-    @objc private func emojiPressed() {
-        // Placeholder for emoji functionality
-        // For now, just add a smiley face
-        delegate?.insertText("😊")
+        debugLog("🚨 SHIFT BUTTON PRESSED - Starting comprehensive check")
+        debugLog("   - Current shift state: \(isShiftEnabled)")
+        debugLog("   - Space button exists: \(spaceButton != nil)")
+        debugLog("   - Return button exists: \(returnButton != nil)")
+        debugLog("   - Space button enabled: \(spaceButton?.isEnabled ?? false)")
+        debugLog("   - Return button enabled: \(returnButton?.isEnabled ?? false)")
+        
+        toggleShiftStateOnly()
+        
+        debugLog("🔍 POST-SHIFT state check:")
+        debugLog("   - New shift state: \(isShiftEnabled)")
+        debugLog("   - Space button still enabled: \(spaceButton?.isEnabled ?? false)")
+        debugLog("   - Return button still enabled: \(returnButton?.isEnabled ?? false)")
     }
     
     @objc private func backspacePressed() {
+        debugLog("⌫ Backspace pressed")
         delegate?.deleteBackward()
     }
     
     @objc private func spacePressed() {
-        delegate?.insertText(" ")
-    }
-    
-    @objc private func returnPressed() {
-        delegate?.insertReturn()
-    }
-    
-    private func toggleShift() {
-        isShiftEnabled.toggle()
-        updateShiftButton()
-        updateAlphabetButtons()
-    }
-    
-    
-    private func updateShiftButton() {
-        if isShiftEnabled {
-            shiftButton?.backgroundColor = colors.shiftActive
-            shiftButton?.setTitle("⇧", for: .normal)
-        } else {
-            shiftButton?.backgroundColor = colors.special
-            shiftButton?.setTitle("⇧", for: .normal)
+        debugLog("🚨 SPACE BUTTON PRESSED - Starting comprehensive check")
+        debugLog("   - Delegate exists: \(delegate != nil)")
+        debugLog("   - KeyboardViewController exists: \(keyboardViewController != nil)")
+        debugLog("   - Current shift state: \(isShiftEnabled)")
+        
+        guard let delegate = delegate else { 
+            debugLog("❌ Space pressed but delegate is nil")
+            return 
+        }
+        
+        debugLog("✅ Space delegate confirmed - inserting space character")
+        delegate.insertText(" ")
+        debugLog("✅ Space insertion completed successfully")
+        
+        // Provide haptic feedback
+        if #available(iOS 10.0, *) {
+            let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
+            feedbackGenerator.impactOccurred()
+            debugLog("✅ Space haptic feedback triggered")
         }
     }
     
-    private func updateAlphabetButtons() {
+    @objc private func returnPressed() {
+        debugLog("🚨 RETURN BUTTON PRESSED - Starting comprehensive check")
+        debugLog("   - Delegate exists: \(delegate != nil)")
+        debugLog("   - KeyboardViewController exists: \(keyboardViewController != nil)")
+        debugLog("   - Current shift state: \(isShiftEnabled)")
+        
+        guard let delegate = delegate else {
+            debugLog("❌ Return pressed but delegate is nil") 
+            return 
+        }
+        
+        debugLog("✅ Return delegate confirmed - inserting return")
+        delegate.insertReturn()
+        debugLog("✅ Return insertion completed successfully")
+        
+        // Provide haptic feedback
+        if #available(iOS 10.0, *) {
+            let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
+            feedbackGenerator.impactOccurred()
+            debugLog("✅ Return haptic feedback triggered")
+        }
+    }
+    
+    // MARK: - Isolated State Management (Only Affects Alphabet Section)
+    
+    private func toggleShiftStateOnly() {
+        debugLog("🔄 Toggling shift state: \(isShiftEnabled) -> \(!isShiftEnabled)")
+        isShiftEnabled.toggle()
+        updateAlphabetSectionOnly()
+    }
+    
+    private func updateAlphabetSectionOnly() {
+        debugLog("📝 Updating alphabet section only - shift: \(isShiftEnabled)")
+        
+        // Update shift button appearance
+        if isShiftEnabled {
+            shiftButton?.backgroundColor = colors.shiftActive
+        } else {
+            shiftButton?.backgroundColor = colors.special
+        }
+        
+        // Update ONLY alphabet button display text - NO other sections affected
         for (rowIndex, row) in alphabetButtons.enumerated() {
             for (keyIndex, button) in row.enumerated() {
                 let originalKey = alphabetKeys[rowIndex][keyIndex]
@@ -383,20 +365,52 @@ class KeyboardView: UIView {
                 button.setTitle(displayText, for: .normal)
             }
         }
+        
+        debugLog("✅ Alphabet section updated - \(programmerButtons.count) programmer rows UNTOUCHED, space/return UNTOUCHED")
     }
     
+    // MARK: - Standardized Touch Event Handling
+    
     @objc private func keyTouchDown(_ sender: UIButton) {
-        // Immediate feedback without animation for better responsiveness
+        let buttonTitle = sender.currentTitle ?? "unknown"
+        debugLog("👇 Touch down on button: '\(buttonTitle)'")
+        
+        // Track if this is a critical button
+        if buttonTitle == "space" || buttonTitle == "return" {
+            debugLog("🔍 Critical button '\(buttonTitle)' touch down - detailed tracking")
+            debugLog("   - Button enabled: \(sender.isEnabled)")
+            debugLog("   - Button user interaction: \(sender.isUserInteractionEnabled)")
+            debugLog("   - Button frame: \(sender.frame)")
+            debugLog("   - Button superview: \(sender.superview != nil)")
+        }
+        
+        // Immediate visual feedback for better responsiveness
         sender.alpha = 0.5
         sender.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
     }
     
     @objc private func keyTouchUp(_ sender: UIButton) {
-        // Quick animation back to normal state
-        UIView.animate(withDuration: 0.05, delay: 0, options: [.curveEaseOut], animations: {
+        let buttonTitle = sender.currentTitle ?? "unknown"
+        debugLog("👆 Touch up on button: '\(buttonTitle)'")
+        
+        // Track if this is a critical button
+        if buttonTitle == "space" || buttonTitle == "return" {
+            debugLog("🔍 Critical button '\(buttonTitle)' touch up - detailed tracking")
+        }
+        
+        // Consistent animation back to normal state for all buttons
+        UIView.animate(withDuration: 0.05, delay: 0, options: [.curveEaseOut, .allowUserInteraction], animations: {
             sender.alpha = 1.0
             sender.transform = CGAffineTransform.identity
-        })
+        }, completion: nil)
+    }
+    
+    // MARK: - Debug Instrumentation
+    
+    private func debugLog(_ message: String) {
+        if enableDebugLogging {
+            print("[KeyboardView Debug] \(message)")
+        }
     }
     
     override func sizeToFit() {
