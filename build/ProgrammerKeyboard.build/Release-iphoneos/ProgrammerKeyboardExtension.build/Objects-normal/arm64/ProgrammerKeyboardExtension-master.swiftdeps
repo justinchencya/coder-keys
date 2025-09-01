@@ -1,7 +1,0 @@
-version: "Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)"
-options: "e349537d4ad02a38608203290406db5d20793b041199d95b63583c622691dcc6"
-build_start_time: [1756617952, 357592000]
-build_end_time: [1756617954, 308020000]
-inputs:
-  "/Users/justinchencya/Documents/AI Apps/programmer-keyboard/ProgrammerKeyboardExtension/KeyboardView.swift": !dirty [1756617920, 516290734]
-  "/Users/justinchencya/Documents/AI Apps/programmer-keyboard/ProgrammerKeyboardExtension/KeyboardViewController.swift": !dirty [1756615251, 833494836]

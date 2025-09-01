@@ -1,4 +1,4 @@
-# Programmer Keyboard
+# CoderKeys
 
 A powerful iOS keyboard extension designed specifically for programmers and developers.
 
@@ -12,8 +12,8 @@ A powerful iOS keyboard extension designed specifically for programmers and deve
 ## Installation
 
 1. Go to Settings > General > Keyboard > Keyboards
-2. Tap 'Add New Keyboard' and select 'Programmer Keyboard'
-3. Tap on 'Programmer Keyboard' and enable 'Allow Full Access'
+2. Tap 'Add New Keyboard' and select 'CoderKeys'
+3. Tap on 'CoderKeys' and enable 'Allow Full Access'
 4. Switch to the keyboard by tapping the globe icon
 
 ## Usage

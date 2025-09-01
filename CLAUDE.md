@@ -1,6 +1,6 @@
 # Claude Code Project Context
 
-This file contains development context and common commands for the Programmer Keyboard iOS project.
+This file contains development context and common commands for the CoderKeys iOS project.
 
 ## Project Overview
 
@@ -10,9 +10,9 @@ This file contains development context and common commands for the Programmer Ke
 
 ## Development Environment
 
-- **Working Directory**: `/Users/justinchencya/Documents/AI Apps/programmer-keyboard`
-- **Xcode Project**: `ProgrammerKeyboard/ProgrammerKeyboard.xcodeproj`
-- **Bundle ID**: `nerdyStuff.ProgrammerKeyboard`
+- **Working Directory**: `/Users/justinchencya/Documents/AI Apps/coder-keys`
+- **Xcode Project**: `CoderKeys/CoderKeys.xcodeproj`
+- **Bundle ID**: `nerdyStuff.CoderKeys`
 - **Deployment Target**: iOS 17.0+
 - **Architecture**: SwiftUI + Core Data
 
@@ -21,13 +21,13 @@ This file contains development context and common commands for the Programmer Ke
 ### Building & Testing
 ```bash
 # Build the main app
-cd ProgrammerKeyboard && xcodebuild -project ProgrammerKeyboard.xcodeproj -scheme ProgrammerKeyboard -sdk iphoneos build
+cd CoderKeys && xcodebuild -project CoderKeys.xcodeproj -scheme CoderKeys -sdk iphoneos build
 
 # Build for simulator (for main app only - keyboard extensions don't work in simulator)
-cd ProgrammerKeyboard && xcodebuild -project ProgrammerKeyboard.xcodeproj -scheme ProgrammerKeyboard -sdk iphonesimulator build
+cd CoderKeys && xcodebuild -project CoderKeys.xcodeproj -scheme CoderKeys -sdk iphonesimulator build
 
 # Clean build artifacts
-cd ProgrammerKeyboard && xcodebuild clean
+cd CoderKeys && xcodebuild clean
 ```
 
 ### Project Management
@@ -49,11 +49,11 @@ tree -I 'build|DerivedData|*.xcuserstate'
 ### File Operations
 ```bash
 # List project files
-find ProgrammerKeyboard -name "*.swift" -not -path "*/DerivedData/*"
+find CoderKeys -name "*.swift" -not -path "*/DerivedData/*"
 
 # Search for specific code patterns
-grep -r "UIInputViewController" ProgrammerKeyboard/
-grep -r "keyboard" ProgrammerKeyboard/
+grep -r "UIInputViewController" CoderKeys/
+grep -r "keyboard" CoderKeys/
 ```
 
 ## Development Phases
@@ -79,17 +79,17 @@ grep -r "keyboard" ProgrammerKeyboard/
 
 ### Keyboard Extension Files (Missing)
 ```
-ProgrammerKeyboard/
-└── ProgrammerKeyboardExtension/
+CoderKeys/
+└── CoderKeysExtension/
     ├── KeyboardViewController.swift      # Main keyboard controller
     ├── KeyboardView.swift               # Custom keyboard UI
-    ├── ProgrammerKeyboard.swift         # Key layout definitions
+    ├── CoderKeys.swift         # Key layout definitions
     └── Info.plist                      # Extension configuration
 ```
 
 ### Main App Enhancements (Future)
 ```
-ProgrammerKeyboard/ProgrammerKeyboard/
+CoderKeys/CoderKeys/
 ├── Views/
 │   ├── SettingsView.swift              # Keyboard settings
 │   ├── SnippetManagerView.swift        # Code snippet management
