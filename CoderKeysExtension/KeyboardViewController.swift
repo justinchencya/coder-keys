@@ -5,9 +5,7 @@ class KeyboardViewController: UIInputViewController {
     private var keyboardView: KeyboardView!
     private var isKeyboardReady = false
     
-    override func updateViewConstraints() {
-        super.updateViewConstraints()
-    }
+
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -18,45 +16,55 @@ class KeyboardViewController: UIInputViewController {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        // Ensure the view is properly laid out before appearing
-        view.setNeedsLayout()
-        view.layoutIfNeeded()
-        
-        // Re-validate readiness in case of rapid switching
-        if !isKeyboardReady {
+        // Only validate readiness if the keyboard view doesn't exist
+        // This prevents unnecessary state changes during rapid switching
+        if keyboardView == nil {
+            setupKeyboardView()
             validateKeyboardReadiness()
+        } else {
+            // Just ensure buttons are enabled for existing view
+            keyboardView?.enableButtons()
         }
     }
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        // Keyboard is already ready from viewDidLoad, no need to validate again
+        // Ensure keyboard is ready when it appears
+        if !isKeyboardReady {
+            validateKeyboardReadiness()
+        }
     }
     
     override func viewWillLayoutSubviews() {
         super.viewWillLayoutSubviews()
-        // Ensure consistent layout during subview updates
-        if isKeyboardReady {
-            keyboardView?.setNeedsLayout()
-        }
+        // Let the system handle layout naturally - no forced updates
     }
     
     private func setupKeyboardView() {
-        // Remove existing keyboard view if it exists (prevents memory issues during switching)
-        keyboardView?.removeFromSuperview()
+        // Only create the keyboard view if it doesn't exist
+        // This prevents the flashing caused by recreating the view
+        guard keyboardView == nil else { return }
+        
+        // Ensure the view has the correct trait collection before creating the keyboard view
+        // This prevents color flashing during initialization
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
         
         keyboardView = KeyboardView(keyboardViewController: self)
         view.addSubview(keyboardView)
         keyboardView.translatesAutoresizingMaskIntoConstraints = false
         
-        // Remove the fixed height constraint to prevent layout conflicts
-        // Let the view size itself based on content and system requirements
+        // Set up constraints to fill the entire view
         NSLayoutConstraint.activate([
             keyboardView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             keyboardView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             keyboardView.topAnchor.constraint(equalTo: view.topAnchor),
             keyboardView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
+        
+        // Ensure the keyboard view is properly laid out before it becomes visible
+        keyboardView.setNeedsLayout()
+        keyboardView.layoutIfNeeded()
     }
     
     private func validateKeyboardReadiness() {
@@ -77,14 +85,14 @@ class KeyboardViewController: UIInputViewController {
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        keyboardView.disableButtons()
-        isKeyboardReady = false
+        // Don't disable buttons or reset state - this causes flashing
+        // The keyboard will be reused when switching back
     }
     
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        // Ensure complete cleanup when keyboard disappears
-        keyboardView.resetShiftState()
+        // Only reset shift state, don't disable buttons
+        keyboardView?.resetShiftState()
     }
     
     // MARK: - Public Interface for Keyboard State
@@ -96,6 +104,32 @@ class KeyboardViewController: UIInputViewController {
     func forceReadinessValidation() {
         isKeyboardReady = false
         validateKeyboardReadiness()
+    }
+    
+    // MARK: - Memory Management
+    
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        // Only recreate view if absolutely necessary due to memory pressure
+        // This is a last resort to prevent memory issues
+        if keyboardView != nil {
+            keyboardView.removeFromSuperview()
+            keyboardView = nil
+            isKeyboardReady = false
+        }
+    }
+    
+    // MARK: - Trait Collection Handling
+    
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        
+        // If the keyboard view exists and the user interface style changed,
+        // ensure it's properly updated
+        if keyboardView != nil && traitCollection.userInterfaceStyle != previousTraitCollection?.userInterfaceStyle {
+            // The KeyboardView will handle its own color updates via traitCollectionDidChange
+            // No additional action needed here
+        }
     }
 }
 

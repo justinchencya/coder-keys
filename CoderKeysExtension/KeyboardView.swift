@@ -53,10 +53,12 @@ class KeyboardView: UIView {
     
     init(keyboardViewController: KeyboardViewController) {
         self.keyboardViewController = keyboardViewController
-        // Initialize colors immediately to prevent lazy loading issues during keyboard switching
-        self.colors = KeyColors(userInterfaceStyle: .unspecified)
+        // Initialize colors with a default value first, then update after super.init
+        self.colors = KeyColors(userInterfaceStyle: .light)
         super.init(frame: .zero)
         self.delegate = keyboardViewController
+        // Update colors with the current trait collection to prevent flashing
+        self.colors = KeyColors(userInterfaceStyle: traitCollection.userInterfaceStyle)
         setupKeyboard()
     }
     
@@ -89,21 +91,17 @@ class KeyboardView: UIView {
         createAlphabetKeySection()
         createBottomActionSection()
         
-        // Initially disable all buttons to prevent flashing - they'll be enabled when keyboard is ready
-        updateButtonStates(enabled: false)
+        // Start with buttons enabled to prevent flashing during keyboard switching
+        updateButtonStates(enabled: true)
         
         // Ensure shift state is properly initialized
         isShiftActive = false
         updateShiftState()
         updateAlphabetKeyTitles()
         
-        // Initialize colors with current trait collection
-        updateColorsForCurrentTraitCollection()
-        
-        // Register for modern trait change notifications on iOS 17+
-        if #available(iOS 17.0, *) {
-            registerForTraitChanges()
-        }
+        // Colors are already initialized in init with correct trait collection
+        // Register for trait change notifications to handle dynamic appearance changes
+        registerForTraitChangeNotifications()
         
     }
     
@@ -433,10 +431,27 @@ class KeyboardView: UIView {
     
     
     
-    @available(iOS 17.0, *)
-    private func registerForTraitChanges() {
-        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: KeyboardView, previousTraitCollection: UITraitCollection) in
-            self.updateKeyboardColorsForCurrentAppearance()
+    private func registerForTraitChangeNotifications() {
+        // Use modern trait change registration on iOS 17+, fallback to traitCollectionDidChange on older versions
+        if #available(iOS 17.0, *) {
+            registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: KeyboardView, previousTraitCollection: UITraitCollection) in
+                self.updateKeyboardColorsForCurrentAppearance()
+            }
+        }
+        // For iOS 15-16, traitCollectionDidChange will handle the changes
+    }
+    
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        // Only call super on iOS versions where it's not deprecated
+        if #available(iOS 17.0, *) {
+            // Don't call super on iOS 17+ as it's deprecated
+        } else {
+            super.traitCollectionDidChange(previousTraitCollection)
+        }
+        
+        // Only update colors if the user interface style actually changed
+        if traitCollection.userInterfaceStyle != previousTraitCollection?.userInterfaceStyle {
+            updateKeyboardColorsForCurrentAppearance()
         }
     }
     
@@ -448,30 +463,35 @@ class KeyboardView: UIView {
         // Update colors without causing visual flashing
         updateColorsForCurrentTraitCollection()
         
-        // Batch color updates to prevent individual button flashing
-        UIView.performWithoutAnimation {
-            // Update all programmer buttons
-            for (rowIndex, row) in programmerButtons.enumerated() {
-                for (keyIndex, button) in row.enumerated() {
-                    let key = numberSymbolKeys[rowIndex][keyIndex]
-                    button.backgroundColor = getColorForNumberSymbolKey(key)
-                }
+        // Use a more efficient approach to prevent flashing
+        // Disable implicit animations for all color changes
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        
+        // Update all programmer buttons
+        for (rowIndex, row) in programmerButtons.enumerated() {
+            for (keyIndex, button) in row.enumerated() {
+                let key = numberSymbolKeys[rowIndex][keyIndex]
+                button.backgroundColor = getColorForNumberSymbolKey(key)
             }
-            
-            // Update all alphabet buttons
-            for row in alphabetButtons {
-                for button in row {
-                    button.backgroundColor = colors.alphabet
-                }
-            }
-            
-            // Update special buttons
-            shiftButton?.backgroundColor = isShiftActive ? colors.shiftActive : colors.special
-            backspaceButton?.backgroundColor = colors.special
-            spaceButton?.backgroundColor = colors.special
-            returnButton?.backgroundColor = colors.special
         }
         
+        // Update all alphabet buttons
+        for row in alphabetButtons {
+            for button in row {
+                button.backgroundColor = colors.alphabet
+            }
+        }
+        
+        // Update special buttons
+        shiftButton?.backgroundColor = isShiftActive ? colors.shiftActive : colors.special
+        backspaceButton?.backgroundColor = colors.special
+        spaceButton?.backgroundColor = colors.special
+        returnButton?.backgroundColor = colors.special
+        
+        CATransaction.commit()
+        
+        // Update alphabet key titles without animation
         updateAlphabetKeyTitles()
     }
     
@@ -514,9 +534,3 @@ private struct KeyColors {
     }
 }
 
-// MARK: - String Extension
-private extension String {
-    func contains(_ strings: [String]) -> Bool {
-        return strings.contains(self)
-    }
-}
