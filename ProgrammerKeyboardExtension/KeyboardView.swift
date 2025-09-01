@@ -93,6 +93,11 @@ class KeyboardView: UIView {
         // Initially disable all buttons until keyboard is ready
         updateButtonStates(enabled: false)
         
+        // Ensure shift state is properly initialized
+        isShiftActive = false
+        updateShiftState()
+        updateAlphabetKeyTitles()
+        
         // Register for modern trait change notifications on iOS 17+
         if #available(iOS 17.0, *) {
             registerForTraitChanges()
@@ -311,16 +316,17 @@ class KeyboardView: UIView {
     }
     
     @objc private func alphabetKeyPressed(_ sender: UIButton) {
-        guard let text = sender.currentTitle else { return }
+        // Find the original key from the alphabetKeys array
+        guard let originalKey = findOriginalKey(for: sender) else { return }
         
         // Check if keyboard is ready
         guard isKeyboardReady() else {
-            debugLog("❌ Keyboard not ready, alphabet key '\(text)' action blocked")
+            debugLog("❌ Keyboard not ready, alphabet key '\(originalKey)' action blocked")
             return
         }
         
-        let finalText = isShiftActive ? text.uppercased() : text
-        debugLog("🔤 Alphabet key pressed: '\(text)' -> '\(finalText)' (shift: \(isShiftActive))")
+        let finalText = isShiftActive ? originalKey.uppercased() : originalKey
+        debugLog("🔤 Alphabet key pressed: '\(originalKey)' -> '\(finalText)' (shift: \(isShiftActive))")
         delegate?.insertText(finalText)
         
         // Auto-disable shift after typing (like iOS keyboard)
@@ -468,17 +474,49 @@ class KeyboardView: UIView {
     
     func enableButtons() {
         updateButtonStates(enabled: true)
+        // Ensure alphabet keys are in the correct state when enabling
+        updateAlphabetKeyTitles()
         debugLog("🎯 All buttons are now ENABLED and ready for input")
     }
     
     func disableButtons() {
         updateButtonStates(enabled: false)
+        // Reset shift state when disabling buttons
+        if isShiftActive {
+            isShiftActive = false
+            updateShiftState()
+            updateAlphabetKeyTitles()
+        }
         debugLog("⏸️ All buttons are now DISABLED - waiting for keyboard to be ready")
+    }
+    
+    func resetShiftState() {
+        if isShiftActive {
+            isShiftActive = false
+            updateShiftState()
+            updateAlphabetKeyTitles()
+            debugLog("🔄 Shift state reset to lowercase")
+        }
     }
     
     func isKeyboardReady() -> Bool {
         guard let keyboardVC = keyboardViewController else { return false }
         return keyboardVC.isReady()
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func findOriginalKey(for button: UIButton) -> String? {
+        // Search through alphabetButtons to find the button and get its original key
+        for (rowIndex, row) in alphabetButtons.enumerated() {
+            for (keyIndex, btn) in row.enumerated() {
+                if btn === button {
+                    // Return the original key from alphabetKeys array
+                    return alphabetKeys[rowIndex][keyIndex]
+                }
+            }
+        }
+        return nil
     }
     
     // MARK: - Shift State Management
@@ -494,6 +532,7 @@ class KeyboardView: UIView {
                 config?.baseBackgroundColor = colors.shiftActive
                 shiftButton.configuration = config
             }
+            debugLog("🔵 Shift button now shows ACTIVE state")
         } else {
             shiftButton.backgroundColor = colors.special
             if #available(iOS 15.0, *) {
@@ -501,10 +540,12 @@ class KeyboardView: UIView {
                 config?.baseBackgroundColor = colors.special
                 shiftButton.configuration = config
             }
+            debugLog("⚪ Shift button now shows INACTIVE state")
         }
     }
     
     private func updateAlphabetKeyTitles() {
+        var updatedCount = 0
         for (rowIndex, row) in alphabetButtons.enumerated() {
             for (keyIndex, button) in row.enumerated() {
                 let originalKey = alphabetKeys[rowIndex][keyIndex]
@@ -516,8 +557,10 @@ class KeyboardView: UIView {
                     config?.title = displayText
                     button.configuration = config
                 }
+                updatedCount += 1
             }
         }
+        debugLog("🔤 Updated \(updatedCount) alphabet keys to \(isShiftActive ? "UPPERCASE" : "lowercase")")
     }
     
     // MARK: - Visual Feedback (Using Built-in UIButton Behavior)
@@ -577,6 +620,9 @@ class KeyboardView: UIView {
                 updateButtonColor(button, color: colors.alphabet)
             }
         }
+        
+        // Ensure alphabet key titles are correct after color update
+        updateAlphabetKeyTitles()
         
         // Update special buttons
         if let shiftBtn = shiftButton {
