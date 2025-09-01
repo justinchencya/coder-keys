@@ -12,8 +12,8 @@ class KeyboardView: UIView {
     weak var delegate: KeyboardViewDelegate?
     private weak var keyboardViewController: KeyboardViewController?
     
-    // Cached colors for performance
-    private lazy var colors = KeyColors(userInterfaceStyle: traitCollection.userInterfaceStyle)
+    // Cached colors for performance - initialize immediately to prevent lazy loading issues
+    private var colors: KeyColors
     
     // MARK: - Separated Architecture Components
     
@@ -53,6 +53,8 @@ class KeyboardView: UIView {
     
     init(keyboardViewController: KeyboardViewController) {
         self.keyboardViewController = keyboardViewController
+        // Initialize colors immediately to prevent lazy loading issues during keyboard switching
+        self.colors = KeyColors(userInterfaceStyle: .unspecified)
         super.init(frame: .zero)
         self.delegate = keyboardViewController
         setupKeyboard()
@@ -79,18 +81,24 @@ class KeyboardView: UIView {
             stackView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8)
         ])
         
+        // Set a minimum height to ensure consistent sizing
+        stackView.heightAnchor.constraint(greaterThanOrEqualToConstant: 260).isActive = true
+        
         // Create independent sections
         createProgrammerKeySection()
         createAlphabetKeySection()
         createBottomActionSection()
         
-        // Initially enable all buttons - they'll be controlled by keyboard readiness checks
-        updateButtonStates(enabled: true)
+        // Initially disable all buttons to prevent flashing - they'll be enabled when keyboard is ready
+        updateButtonStates(enabled: false)
         
         // Ensure shift state is properly initialized
         isShiftActive = false
         updateShiftState()
         updateAlphabetKeyTitles()
+        
+        // Initialize colors with current trait collection
+        updateColorsForCurrentTraitCollection()
         
         // Register for modern trait change notifications on iOS 17+
         if #available(iOS 17.0, *) {
@@ -432,32 +440,39 @@ class KeyboardView: UIView {
         }
     }
     
-    private func updateKeyboardColorsForCurrentAppearance() {
+    private func updateColorsForCurrentTraitCollection() {
         colors = KeyColors(userInterfaceStyle: traitCollection.userInterfaceStyle)
+    }
+    
+    private func updateKeyboardColorsForCurrentAppearance() {
+        // Update colors without causing visual flashing
+        updateColorsForCurrentTraitCollection()
         
-        // Update all programmer buttons
-        for (rowIndex, row) in programmerButtons.enumerated() {
-            for (keyIndex, button) in row.enumerated() {
-                let key = numberSymbolKeys[rowIndex][keyIndex]
-                button.backgroundColor = getColorForNumberSymbolKey(key)
+        // Batch color updates to prevent individual button flashing
+        UIView.performWithoutAnimation {
+            // Update all programmer buttons
+            for (rowIndex, row) in programmerButtons.enumerated() {
+                for (keyIndex, button) in row.enumerated() {
+                    let key = numberSymbolKeys[rowIndex][keyIndex]
+                    button.backgroundColor = getColorForNumberSymbolKey(key)
+                }
             }
-        }
-        
-        // Update all alphabet buttons
-        for row in alphabetButtons {
-            for button in row {
-                button.backgroundColor = colors.alphabet
+            
+            // Update all alphabet buttons
+            for row in alphabetButtons {
+                for button in row {
+                    button.backgroundColor = colors.alphabet
+                }
             }
+            
+            // Update special buttons
+            shiftButton?.backgroundColor = isShiftActive ? colors.shiftActive : colors.special
+            backspaceButton?.backgroundColor = colors.special
+            spaceButton?.backgroundColor = colors.special
+            returnButton?.backgroundColor = colors.special
         }
         
         updateAlphabetKeyTitles()
-        
-        // Update special buttons
-        shiftButton?.backgroundColor = isShiftActive ? colors.shiftActive : colors.special
-        backspaceButton?.backgroundColor = colors.special
-        spaceButton?.backgroundColor = colors.special
-        returnButton?.backgroundColor = colors.special
-        
     }
     
 }
