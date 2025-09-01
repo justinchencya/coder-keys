@@ -6,81 +6,164 @@
 //
 
 import SwiftUI
-import CoreData
 
 struct ContentView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
-        animation: .default)
-    private var items: FetchedResults<Item>
-
     var body: some View {
         NavigationView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp!, formatter: itemFormatter)")
-                    } label: {
-                        Text(item.timestamp!, formatter: itemFormatter)
+            ScrollView {
+                VStack(spacing: 24) {
+                    // App Logo
+                    Image("app_logo")
+                        .resizable()
+                        .frame(width: 80, height: 80)
+                        .cornerRadius(16)
+                    
+                    // App Title and Copyright
+                    VStack(spacing: 16) {
+                        Text("Programmer Keyboard")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(.primary)
+                        
+                        Text("© 2025 nerdyStuff")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
                     }
-                }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+                    
+                    // App Description
+                    VStack(spacing: 16) {
+                        Text("A powerful keyboard extension designed specifically for programmers and developers.")
+                            .font(.system(size: 16))
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        
+                        VStack(spacing: 12) {
+                            FeatureRow(icon: "keyboard", title: "Programmer Keys", description: "Quick access to symbols, brackets, and operators")
+                            FeatureRow(icon: "textformat.abc", title: "Smart Shift", description: "Toggle between uppercase and lowercase with visual feedback")
+                            FeatureRow(icon: "paintbrush", title: "Dark Mode Support", description: "Adaptive colors for light and dark themes")
+                        }
+                        .padding(.horizontal)
                     }
+                    
+                    // Action Links
+                    VStack(spacing: 12) {
+                        Link(destination: URL(string: "https://www.nerdystuff.xyz")!) {
+                            HStack {
+                                Text("About Us")
+                                Spacer()
+                                Image(systemName: "arrow.up.right.circle.fill")
+                            }
+                            .foregroundColor(.blue)
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.blue.opacity(0.1))
+                            )
+                        }
+                        
+                        Link(destination: URL(string: "https://www.nerdystuff.xyz/pages/contact-us")!) {
+                            HStack {
+                                Text("Contact")
+                                Spacer()
+                                Image(systemName: "arrow.up.right.circle.fill")
+                            }
+                            .foregroundColor(.blue)
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.blue.opacity(0.1))
+                            )
+                        }
+                    }
+                    .padding(.horizontal)
+                    
+                    // Setup Instructions
+                    VStack(spacing: 16) {
+                        Text("How to Use")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.primary)
+                        
+                        VStack(spacing: 12) {
+                            InstructionStep(number: "1", text: "Go to Settings > General > Keyboard > Keyboards")
+                            InstructionStep(number: "2", text: "Tap 'Add New Keyboard' and select 'Programmer Keyboard'")
+                            InstructionStep(number: "3", text: "Tap on 'Programmer Keyboard' and enable 'Allow Full Access'")
+                            InstructionStep(number: "4", text: "Switch to the keyboard by tapping the globe icon")
+                        }
+                        .padding(.horizontal)
+                    }
+                    
+                    Spacer(minLength: 0)
                 }
+                .padding(.top, 40)
+                .frame(maxWidth: 400) // Fixed maximum width
+                .frame(maxHeight: .infinity)
+                .padding(.horizontal)
             }
-            Text("Select an item")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Programmer Keyboard")
         }
+        .navigationViewStyle(StackNavigationViewStyle()) // Forces modal style in all orientations
     }
+}
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(context: viewContext)
-            newItem.timestamp = Date()
+// MARK: - Supporting Views
 
-            do {
-                try viewContext.save()
-            } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+struct FeatureRow: View {
+    let icon: String
+    let title: String
+    let description: String
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundColor(.blue)
+                .frame(width: 24)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.primary)
+                
+                Text(description)
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
             }
+            
+            Spacer()
         }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemGray6))
+        )
     }
+}
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            offsets.map { items[$0] }.forEach(viewContext.delete)
-
-            do {
-                try viewContext.save()
-            } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
+struct InstructionStep: View {
+    let number: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(number)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(.white)
+                .frame(width: 24, height: 24)
+                .background(
+                    Circle()
+                        .fill(Color.blue)
+                )
+            
+            Text(text)
+                .font(.system(size: 14))
+                .foregroundColor(.primary)
+            
+            Spacer()
         }
     }
 }
 
-private let itemFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateStyle = .short
-    formatter.timeStyle = .medium
-    return formatter
-}()
-
 #Preview {
-    ContentView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+    ContentView()
 }
