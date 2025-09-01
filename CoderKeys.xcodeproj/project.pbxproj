@@ -629,7 +629,7 @@
 				DEVELOPMENT_TEAM = BS5UNBHD6Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoderKeysExtension/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = CoderKeysExtension;
+				INFOPLIST_KEY_CFBundleDisplayName = CoderKeys;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -655,7 +655,7 @@
 				DEVELOPMENT_TEAM = BS5UNBHD6Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoderKeysExtension/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = CoderKeysExtension;
+				INFOPLIST_KEY_CFBundleDisplayName = CoderKeys;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
