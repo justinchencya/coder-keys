@@ -360,17 +360,23 @@ class KeyboardView: UIView {
     // MARK: - Public Interface for Keyboard State
     
     func enableButtons() {
-        updateButtonStates(enabled: true)
-        updateAlphabetKeyTitles()
+        // Only update if buttons are currently disabled to prevent unnecessary state changes
+        if let firstButton = programmerButtons.first?.first, !firstButton.isEnabled {
+            updateButtonStates(enabled: true)
+            updateAlphabetKeyTitles()
+        }
     }
     
     func disableButtons() {
-        updateButtonStates(enabled: false)
-        // Reset shift state when disabling buttons
-        if isShiftActive {
-            isShiftActive = false
-            updateShiftState()
-            updateAlphabetKeyTitles()
+        // Only update if buttons are currently enabled to prevent unnecessary state changes
+        if let firstButton = programmerButtons.first?.first, firstButton.isEnabled {
+            updateButtonStates(enabled: false)
+            // Reset shift state when disabling buttons
+            if isShiftActive {
+                isShiftActive = false
+                updateShiftState()
+                updateAlphabetKeyTitles()
+            }
         }
     }
     
@@ -461,38 +467,40 @@ class KeyboardView: UIView {
     
     private func updateKeyboardColorsForCurrentAppearance() {
         // Update colors without causing visual flashing
-        updateColorsForCurrentTraitCollection()
+        let newColors = KeyColors(userInterfaceStyle: traitCollection.userInterfaceStyle)
         
-        // Use a more efficient approach to prevent flashing
-        // Disable implicit animations for all color changes
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        
-        // Update all programmer buttons
-        for (rowIndex, row) in programmerButtons.enumerated() {
-            for (keyIndex, button) in row.enumerated() {
-                let key = numberSymbolKeys[rowIndex][keyIndex]
-                button.backgroundColor = getColorForNumberSymbolKey(key)
+        // Only update if colors actually changed to prevent unnecessary updates
+        if newColors.alphabet != colors.alphabet {
+            colors = newColors
+            
+            // Use a more efficient approach to prevent flashing
+            // Disable implicit animations for all color changes
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            
+            // Update all programmer buttons
+            for (rowIndex, row) in programmerButtons.enumerated() {
+                for (keyIndex, button) in row.enumerated() {
+                    let key = numberSymbolKeys[rowIndex][keyIndex]
+                    button.backgroundColor = getColorForNumberSymbolKey(key)
+                }
             }
-        }
-        
-        // Update all alphabet buttons
-        for row in alphabetButtons {
-            for button in row {
-                button.backgroundColor = colors.alphabet
+            
+            // Update all alphabet buttons
+            for row in alphabetButtons {
+                for button in row {
+                    button.backgroundColor = colors.alphabet
+                }
             }
+            
+            // Update special buttons
+            shiftButton?.backgroundColor = isShiftActive ? colors.shiftActive : colors.special
+            backspaceButton?.backgroundColor = colors.special
+            spaceButton?.backgroundColor = colors.special
+            returnButton?.backgroundColor = colors.special
+            
+            CATransaction.commit()
         }
-        
-        // Update special buttons
-        shiftButton?.backgroundColor = isShiftActive ? colors.shiftActive : colors.special
-        backspaceButton?.backgroundColor = colors.special
-        spaceButton?.backgroundColor = colors.special
-        returnButton?.backgroundColor = colors.special
-        
-        CATransaction.commit()
-        
-        // Update alphabet key titles without animation
-        updateAlphabetKeyTitles()
     }
     
 }
