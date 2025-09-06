@@ -1,6 +1,6 @@
 # Claude Code Project Context
 
-This file contains development context and common commands for the CoderKeys iOS project.
+This file contains development context and common commands for the CodersKey iOS project.
 
 ## Project Overview
 
@@ -11,8 +11,8 @@ This file contains development context and common commands for the CoderKeys iOS
 ## Development Environment
 
 - **Working Directory**: `/Users/justinchencya/Documents/AI Apps/coder-keys`
-- **Xcode Project**: `CoderKeys/CoderKeys.xcodeproj`
-- **Bundle ID**: `nerdyStuff.CoderKeys`
+- **Xcode Project**: `CodersKey/CodersKey.xcodeproj`
+- **Bundle ID**: `nerdyStuff.CodersKey`
 - **Deployment Target**: iOS 17.0+
 - **Architecture**: SwiftUI + Core Data
 
@@ -21,13 +21,13 @@ This file contains development context and common commands for the CoderKeys iOS
 ### Building & Testing
 ```bash
 # Build the main app
-cd CoderKeys && xcodebuild -project CoderKeys.xcodeproj -scheme CoderKeys -sdk iphoneos build
+cd CodersKey && xcodebuild -project CodersKey.xcodeproj -scheme CodersKey -sdk iphoneos build
 
 # Build for simulator (for main app only - keyboard extensions don't work in simulator)
-cd CoderKeys && xcodebuild -project CoderKeys.xcodeproj -scheme CoderKeys -sdk iphonesimulator build
+cd CodersKey && xcodebuild -project CodersKey.xcodeproj -scheme CodersKey -sdk iphonesimulator build
 
 # Clean build artifacts
-cd CoderKeys && xcodebuild clean
+cd CodersKey && xcodebuild clean
 ```
 
 ### Project Management
@@ -49,11 +49,11 @@ tree -I 'build|DerivedData|*.xcuserstate'
 ### File Operations
 ```bash
 # List project files
-find CoderKeys -name "*.swift" -not -path "*/DerivedData/*"
+find CodersKey -name "*.swift" -not -path "*/DerivedData/*"
 
 # Search for specific code patterns
-grep -r "UIInputViewController" CoderKeys/
-grep -r "keyboard" CoderKeys/
+grep -r "UIInputViewController" CodersKey/
+grep -r "keyboard" CodersKey/
 ```
 
 ## Development Phases
@@ -79,17 +79,17 @@ grep -r "keyboard" CoderKeys/
 
 ### Keyboard Extension Files (Missing)
 ```
-CoderKeys/
-└── CoderKeysExtension/
+CodersKey/
+└── CodersKeyExtension/
     ├── KeyboardViewController.swift      # Main keyboard controller
     ├── KeyboardView.swift               # Custom keyboard UI
-    ├── CoderKeys.swift         # Key layout definitions
+    ├── CodersKey.swift         # Key layout definitions
     └── Info.plist                      # Extension configuration
 ```
 
 ### Main App Enhancements (Future)
 ```
-CoderKeys/CoderKeys/
+CodersKey/CodersKey/
 ├── Views/
 │   ├── SettingsView.swift              # Keyboard settings
 │   ├── SnippetManagerView.swift        # Code snippet management

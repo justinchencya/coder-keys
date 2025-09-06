@@ -17,8 +17,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "C97EDA2A2E63CBE10055E299"
-               BuildableName = "CoderKeysExtension.appex"
-               BlueprintName = "CoderKeysExtension"
+               BuildableName = "CodersKeyExtension.appex"
+               BlueprintName = "CodersKeyExtension"
                ReferencedContainer = "container:CoderKeys.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -31,8 +31,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "C97ED9CF2E63C8640055E299"
-               BuildableName = "CoderKeys.app"
-               BlueprintName = "CoderKeys"
+               BuildableName = "CodersKey.app"
+               BlueprintName = "CodersKey"
                ReferencedContainer = "container:CoderKeys.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>

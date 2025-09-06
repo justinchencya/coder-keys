@@ -18,7 +18,7 @@
                BlueprintIdentifier = "C97ED9CF2E63C8640055E299"
                BuildableName = "CodersKey.app"
                BlueprintName = "CodersKey"
-               ReferencedContainer = "container:CoderKeys.xcodeproj">
+               ReferencedContainer = "container:CodersKey.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -45,9 +45,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "C97ED9CF2E63C8640055E299"
-            BuildableName = "CoderKeys.app"
-            BlueprintName = "CoderKeys"
-            ReferencedContainer = "container:CoderKeys.xcodeproj">
+            BuildableName = "CodersKey.app"
+            BlueprintName = "CodersKey"
+            ReferencedContainer = "container:CodersKey.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -62,9 +62,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "C97ED9CF2E63C8640055E299"
-            BuildableName = "CoderKeys.app"
-            BlueprintName = "CoderKeys"
-            ReferencedContainer = "container:CoderKeys.xcodeproj">
+            BuildableName = "CodersKey.app"
+            BlueprintName = "CodersKey"
+            ReferencedContainer = "container:CodersKey.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

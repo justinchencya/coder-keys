@@ -1,13 +1,13 @@
 //
-//  CoderKeysUITestsLaunchTests.swift
-//  CoderKeysUITests
+//  CodersKeyUITestsLaunchTests.swift
+//  CodersKeyUITests
 //
 //  Created by Justin Chen on 8/30/25.
 //
 
 import XCTest
 
-final class CoderKeysUITestsLaunchTests: XCTestCase {
+final class CodersKeyUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  CoderKeys
+//  CodersKey
 //
 //  Created by Justin Chen on 8/30/25.
 //
@@ -20,7 +20,7 @@ struct ContentView: View {
                     
                     // App Title and Copyright
                     VStack(spacing: 16) {
-                        Text("CoderKeys")
+                        Text("CodersKey")
                             .font(.system(size: 24, weight: .bold))
                             .foregroundColor(.primary)
                         
@@ -46,8 +46,8 @@ struct ContentView: View {
                         
                         VStack(spacing: 12) {
                             InstructionStep(number: "1", text: "Go to Settings > General > Keyboard > Keyboards")
-                            InstructionStep(number: "2", text: "Tap 'Add New Keyboard' and select 'CoderKeys'")
-                            InstructionStep(number: "3", text: "Tap on 'CoderKeys' and enable 'Allow Full Access'")
+                            InstructionStep(number: "2", text: "Tap 'Add New Keyboard' and select 'CodersKey'")
+                            InstructionStep(number: "3", text: "Tap on 'CodersKey' and enable 'Allow Full Access'")
                             InstructionStep(number: "4", text: "Switch to the keyboard by tapping the globe icon")
                         }
                         .padding(.horizontal)
@@ -93,7 +93,7 @@ struct ContentView: View {
                 .padding(.horizontal)
             }
             .navigationBarTitleDisplayMode(.inline)
-            .navigationTitle("CoderKeys")
+            .navigationTitle("CodersKey")
         }
         .navigationViewStyle(StackNavigationViewStyle()) // Forces modal style in all orientations
     }
